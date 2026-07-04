@@ -4,7 +4,7 @@ import logging
 
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Message
+from aiogram.types import LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -70,6 +70,7 @@ async def _send_business_message(message: Message, text: str, entities) -> None:
         text=text,
         entities=entities,
         parse_mode=None,
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
         business_connection_id=message.business_connection_id,
     )
 

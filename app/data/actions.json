@@ -1,0 +1,126 @@
+{
+  "муа": {
+    "emojis": ["💋", "😘", "😚", "😙", "😽", "❤️"],
+    "templates": [
+      {"emoji": "💋", "text": "{user} {verb} {target}", "verb": {"male": "поцеловал", "female": "поцеловала"}},
+      {"emoji": "😘", "text": "{user} нежно {verb} {target}", "verb": {"male": "поцеловал", "female": "поцеловала"}},
+      {"emoji": "❤️", "text": "{user} {verb} поцелуй {target}", "verb": {"male": "подарил", "female": "подарила"}}
+    ]
+  },
+  "обнять": {
+    "emojis": ["🤗", "🫂", "💞"],
+    "templates": [
+      {"emoji": "🤗", "text": "{user} крепко {verb} {target}", "verb": {"male": "обнял", "female": "обняла"}},
+      {"emoji": "🫂", "text": "{user} {verb} {target} в тёплых объятиях", "verb": {"male": "заключил", "female": "заключила"}}
+    ]
+  },
+  "прижать": {
+    "emojis": ["🥰", "🫂"],
+    "templates": [
+      {"emoji": "🥰", "text": "{user} {verb} {target} к себе", "verb": {"male": "прижал", "female": "прижала"}}
+    ]
+  },
+  "цветы": {
+    "emojis": ["🌹", "💐", "🌷"],
+    "templates": [
+      {"emoji": "🌹", "text": "{user} {verb} {target} букет цветов", "verb": {"male": "подарил", "female": "подарила"}},
+      {"emoji": "💐", "text": "{user} {verb} {target} букет", "verb": {"male": "вручил", "female": "вручила"}}
+    ]
+  },
+  "кольцо": {
+    "emojis": ["💍"],
+    "templates": [
+      {"emoji": "💍", "text": "{user} {verb} {target} кольцо", "verb": {"male": "подарил", "female": "подарила"}}
+    ]
+  },
+  "подарок": {
+    "emojis": ["🎁"],
+    "templates": [
+      {"emoji": "🎁", "text": "{user} {verb} {target} подарок", "verb": {"male": "вручил", "female": "вручила"}}
+    ]
+  },
+  "сердце": {
+    "emojis": ["❤️", "💖", "💗"],
+    "templates": [
+      {"emoji": "❤️", "text": "{user} {verb} {target} своё сердце", "verb": {"male": "отдал", "female": "отдала"}}
+    ]
+  },
+  "погладить": {
+    "emojis": ["🥺", "🫳"],
+    "templates": [
+      {"emoji": "🥺", "text": "{user} нежно {verb} {target} по голове", "verb": {"male": "погладил", "female": "погладила"}}
+    ]
+  },
+  "печенье": {
+    "emojis": ["🍪"],
+    "templates": [
+      {"emoji": "🍪", "text": "{user} {verb} {target} печеньку", "verb": {"male": "угостил", "female": "угостила"}}
+    ]
+  },
+  "кофе": {
+    "emojis": ["☕"],
+    "templates": [
+      {"emoji": "☕", "text": "{user} {verb} {target} чашечку кофе", "verb": {"male": "принёс", "female": "принесла"}}
+    ]
+  },
+  "торт": {
+    "emojis": ["🎂"],
+    "templates": [
+      {"emoji": "🎂", "text": "{user} {verb} {target} кусочек торта", "verb": {"male": "отрезал", "female": "отрезала"}}
+    ]
+  },
+  "дай5": {
+    "emojis": ["🖐️", "🙌"],
+    "templates": [
+      {"emoji": "🖐️", "text": "{user} и {target} {verb} друг другу пять", "verb": {"male": "дали", "female": "дали"}}
+    ]
+  },
+  "шлеп": {
+    "emojis": ["👋"],
+    "templates": [
+      {"emoji": "👋", "text": "{user} {verb} {target}", "verb": {"male": "шлёпнул", "female": "шлёпнула"}}
+    ]
+  },
+  "пнуть": {
+    "emojis": ["🦵"],
+    "templates": [
+      {"emoji": "🦵", "text": "{user} {verb} {target}", "verb": {"male": "пнул", "female": "пнула"}}
+    ]
+  },
+  "удар": {
+    "emojis": ["👊"],
+    "templates": [
+      {"emoji": "👊", "text": "{user} {verb} {target}", "verb": {"male": "ударил", "female": "ударила"}}
+    ]
+  },
+  "тык": {
+    "emojis": ["👉"],
+    "templates": [
+      {"emoji": "👉", "text": "{user} {verb} {target} пальцем", "verb": {"male": "ткнул", "female": "ткнула"}}
+    ]
+  },
+  "буп": {
+    "emojis": ["👆"],
+    "templates": [
+      {"emoji": "👆", "text": "{user} {verb} {target} по носу", "verb": {"male": "бупнул", "female": "бупнула"}}
+    ]
+  },
+  "укус": {
+    "emojis": ["😬"],
+    "templates": [
+      {"emoji": "😬", "text": "{user} {verb} {target}", "verb": {"male": "укусил", "female": "укусила"}}
+    ]
+  },
+  "снежок": {
+    "emojis": ["☃️", "❄️"],
+    "templates": [
+      {"emoji": "☃️", "text": "{user} {verb} снежком в {target}", "verb": {"male": "кинул", "female": "кинула"}}
+    ]
+  },
+  "бан": {
+    "emojis": ["🔨"],
+    "templates": [
+      {"emoji": "🔨", "text": "{user} {verb} {target} в шутку", "verb": {"male": "забанил", "female": "забанила"}}
+    ]
+  }
+}

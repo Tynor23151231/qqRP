@@ -92,7 +92,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
 
     await _delete_source_message(message)
     await message.bot.send_message(
-        chat_id=message.chat.id, text=rendered.text, entities=rendered.entities
+        chat_id=message.chat.id, text=rendered.text, entities=rendered.entities, parse_mode=None
     )
 
     user_service = UserService(session)

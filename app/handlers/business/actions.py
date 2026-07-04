@@ -69,6 +69,7 @@ async def _send_business_message(message: Message, text: str, entities) -> None:
         chat_id=message.chat.id,
         text=text,
         entities=entities,
+        parse_mode=None,
         business_connection_id=message.business_connection_id,
     )
 

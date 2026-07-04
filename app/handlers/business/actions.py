@@ -36,6 +36,11 @@ async def _resolve_target(message: Message, username: str | None) -> tuple[int, 
         name = getattr(chat, "first_name", None) or getattr(chat, "title", None) or username
         return chat.id, name
 
+    if message.chat.type == "private" and message.chat.id != message.from_user.id:
+        chat = message.chat
+        name = chat.first_name or chat.username or chat.title or "Пользователь"
+        return chat.id, name
+
     return None
 
 

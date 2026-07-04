@@ -49,6 +49,10 @@ class UserService:
         user.gender = gender
         await self.session.commit()
 
+    async def set_custom_name(self, user: User, custom_name: str | None) -> None:
+        user.custom_name = custom_name
+        await self.session.commit()
+
     async def set_business_connection(self, user: User, connection_id: str | None) -> None:
         user.business_connection_id = connection_id
         await self.session.commit()

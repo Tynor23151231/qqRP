@@ -16,6 +16,7 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     first_name: Mapped[str] = mapped_column(String(128))
+    custom_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     gender: Mapped[Gender] = mapped_column(default=Gender.UNKNOWN)
 
@@ -47,4 +48,4 @@ class User(Base):
 
     @property
     def display_name(self) -> str:
-        return self.first_name or (self.username and f"@{self.username}") or "Пользователь"
+        return self.custom_name or self.first_name or (self.username and f"@{self.username}") or "Пользователь"

@@ -17,28 +17,44 @@ logger = logging.getLogger(__name__)
 router = Router(name="business_actions")
 
 
-async def _resolve_target(message: Message, username: str | None) -> tuple[int, str] | None:
+async def _display_name_for(session: AsyncSession, telegram_id: int, fallback: str) -> str:
+    """Если у пользователя задано кастомное имя через бота — используем его."""
+    user_service = UserService(session)
+    known = await user_service.get_by_telegram_id(telegram_id)
+    if known is not None and known.custom_name:
+        return known.custom_name
+    return fallback
+
+
+async def _resolve_target(
+    message: Message, username: str | None, session: AsyncSession
+) -> tuple[int, str] | None:
     """
     Определяет цель действия по правилам ТЗ:
     1) ответ на сообщение -> автор этого сообщения;
     2) указан @username -> резолвим через get_chat;
-    3) иначе -> None (вызывающий код попросит выбрать пользователя).
+    3) иначе, в личном чате -> собеседник;
+    4) иначе -> None (вызывающий код попросит выбрать пользователя).
     """
     if message.reply_to_message is not None and message.reply_to_message.from_user is not None:
         target_user = message.reply_to_message.from_user
-        return target_user.id, target_user.first_name or target_user.username or "Пользователь"
+        fallback = target_user.first_name or target_user.username or "Пользователь"
+        name = await _display_name_for(session, target_user.id, fallback)
+        return target_user.id, name
 
     if username:
         try:
             chat = await message.bot.get_chat(f"@{username}")
         except TelegramBadRequest:
             return None
-        name = getattr(chat, "first_name", None) or getattr(chat, "title", None) or username
+        fallback = getattr(chat, "first_name", None) or getattr(chat, "title", None) or username
+        name = await _display_name_for(session, chat.id, fallback)
         return chat.id, name
 
     if message.chat.type == "private" and message.chat.id != message.from_user.id:
         chat = message.chat
-        name = chat.first_name or chat.username or chat.title or "Пользователь"
+        fallback = chat.first_name or chat.username or chat.title or "Пользователь"
+        name = await _display_name_for(session, chat.id, fallback)
         return chat.id, name
 
     return None
@@ -87,7 +103,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         )
         return
 
-    target = await _resolve_target(message, parsed.target_username)
+    target = await _resolve_target(message, parsed.target_username, session)
     if target is None:
         if parsed.target_username:
             await _send_business_message(

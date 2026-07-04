@@ -13,6 +13,7 @@ def settings_keyboard(user: User) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🚻 Сменить пол", callback_data="settings:change_gender")],
+            [InlineKeyboardButton(text=f"✏️ Имя: {user.display_name}", callback_data="settings:change_name")],
             [
                 InlineKeyboardButton(
                     text=f"{_mark(user.random_animations)} Случайные анимации",

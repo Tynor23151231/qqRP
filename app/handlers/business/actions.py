@@ -85,9 +85,13 @@ async def _delete_source_message(message: Message) -> None:
                 chat_id=message.chat.id,
                 message_id=message.message_id,
             )
-    except TelegramBadRequest:
-        # Нет прав на удаление (например, в группе) — просто оставляем команду как есть.
-        logger.debug("Не удалось удалить исходное сообщение %s", message.message_id)
+    except TelegramBadRequest as e:
+        # Чаще всего причина — у бота нет права "Удалять отправленные сообщения"
+        # в настройках Business-подключения (Telegram Settings -> Business -> Chatbots).
+        logger.warning(
+            "Не удалось удалить сообщение %s (business_connection_id=%s): %s",
+            message.message_id, message.business_connection_id, e,
+        )
 
 
 @router.business_message()

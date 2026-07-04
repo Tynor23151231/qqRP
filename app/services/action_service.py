@@ -95,6 +95,7 @@ class ActionService:
         actor: User,
         target_id: int,
         target_name: str,
+        target_username: str | None,
         verb: str | None,
         emoji: str,
         custom_emoji_id: str | None,
@@ -106,9 +107,9 @@ class ActionService:
             builder.add_text(template_text[pos:match.start()])
             token = match.group(1)
             if token == "user":
-                builder.add_mention(actor.display_name, actor.telegram_id, actor.first_name)
+                builder.add_mention(actor.display_name, actor.telegram_id, actor.username)
             elif token == "target":
-                builder.add_mention(target_name, target_id, target_name)
+                builder.add_mention(target_name, target_id, target_username)
             elif token == "verb":
                 builder.add_text(verb or "")
             elif token == "emoji":
@@ -130,7 +131,7 @@ class ActionService:
                     type=e.type,
                     offset=e.offset + prefix_len,
                     length=e.length,
-                    user=e.user,
+                    url=e.url,
                     custom_emoji_id=e.custom_emoji_id,
                 )
                 for e in entities
@@ -146,9 +147,10 @@ class ActionService:
         action_key: str,
         target_id: int,
         target_name: str,
+        target_username: str | None = None,
     ) -> RenderedAction | None:
         """
-        Возвращает готовый к отправке текст + entities (упоминания, премиум эмодзи)
+        Возвращает готовый к отправке текст + entities (ссылки на профили, премиум эмодзи)
         либо None, если такого действия не существует ни среди встроенных,
         ни среди пользовательских триггеров actor'а.
         """
@@ -158,14 +160,14 @@ class ActionService:
             template = random.choice(templates) if actor.random_templates else templates[0]
             verb = self._verb_form(template["verb"], actor.gender)
             return self._render_template(
-                template["text"], actor, target_id, target_name,
+                template["text"], actor, target_id, target_name, target_username,
                 verb=verb, emoji=template["emoji"], custom_emoji_id=None,
             )
 
         custom = await self.get_custom_trigger(actor.id, action_key)
         if custom is not None:
             return self._render_template(
-                custom.template, actor, target_id, target_name,
+                custom.template, actor, target_id, target_name, target_username,
                 verb=None, emoji=custom.emoji, custom_emoji_id=custom.custom_emoji_id,
             )
 

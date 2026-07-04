@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from aiogram.types import MessageEntity
-from aiogram.types import User as TgUser
 
 
 def utf16_len(text: str) -> int:
@@ -19,7 +18,7 @@ def utf16_len(text: str) -> int:
 class EntityTextBuilder:
     """
     Собирает финальный plain-текст сообщения вместе со списком MessageEntity
-    (упоминания пользователей и премиум-эмодзи), т.к. Bot API не позволяет
+    (ссылки на профили и премиум-эмодзи), т.к. Bot API не позволяет
     одновременно использовать parse_mode и entities.
     """
 
@@ -32,15 +31,24 @@ class EntityTextBuilder:
         self._offset += utf16_len(text)
         return self
 
-    def add_mention(self, text: str, user_id: int, first_name: str) -> "EntityTextBuilder":
+    def add_mention(self, text: str, user_id: int, username: str | None = None) -> "EntityTextBuilder":
+        """
+        Добавляет имя как кликабельную ссылку на профиль.
+
+        text_mention entity в бизнес-сообщениях часто просто не рендерится
+        Telegram-клиентом, поэтому вместо него используем обычную URL-ссылку
+        (text_link): на @username, если он есть, иначе на tg://user?id=,
+        который открывает профиль по id даже без username.
+        """
         start = self._offset
         self.add_text(text)
+        url = f"https://t.me/{username}" if username else f"tg://user?id={user_id}"
         self._entities.append(
             MessageEntity(
-                type="text_mention",
+                type="text_link",
                 offset=start,
                 length=utf16_len(text),
-                user=TgUser(id=user_id, is_bot=False, first_name=first_name or "User"),
+                url=url,
             )
         )
         return self

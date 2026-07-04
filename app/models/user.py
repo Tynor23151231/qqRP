@@ -47,4 +47,4 @@ class User(Base):
 
     @property
     def display_name(self) -> str:
-        return self.username and f"@{self.username}" or self.first_name
+        return self.first_name or (self.username and f"@{self.username}") or "Пользователь"

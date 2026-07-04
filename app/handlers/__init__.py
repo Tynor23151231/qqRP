@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from app.handlers import custom_rp, profile, settings, start, stats
+from app.handlers import custom_rp, group_actions, profile, settings, start, stats
 from app.handlers.business import actions as business_actions
 from app.handlers.business import connection as business_connection
 
@@ -15,6 +15,9 @@ def get_root_router() -> Router:
     root.include_router(stats.router)
     root.include_router(settings.router)
     root.include_router(custom_rp.router)
+
+    # Обычные группы, где бот состоит участником
+    root.include_router(group_actions.router)
 
     # Business API — подключение и dot-команды
     root.include_router(business_connection.router)

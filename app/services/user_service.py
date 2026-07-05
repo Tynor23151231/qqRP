@@ -18,6 +18,12 @@ class UserService:
         result = await self.session.execute(select(User).where(User.telegram_id == telegram_id))
         return result.scalar_one_or_none()
 
+    async def get_by_business_connection_id(self, connection_id: str) -> User | None:
+        result = await self.session.execute(
+            select(User).where(User.business_connection_id == connection_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_or_create(
         self,
         telegram_id: int,

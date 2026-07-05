@@ -17,6 +17,21 @@ logger = logging.getLogger(__name__)
 router = Router(name="business_actions")
 
 
+async def _is_from_connection_owner(message: Message, session: AsyncSession) -> bool:
+    """
+    В Business-чате business_message приходит для сообщений ОБОИХ сторон переписки:
+    и владельца аккаунта, и его собеседника (клиента). Отправка же сообщений через
+    business_connection_id всегда идёт от лица владельца — поэтому dot-команды нужно
+    обрабатывать, только если их прислал сам владелец, а не случайный собеседник.
+    """
+    if message.business_connection_id is None or message.from_user is None:
+        return False
+
+    user_service = UserService(session)
+    owner = await user_service.get_by_business_connection_id(message.business_connection_id)
+    return owner is not None and owner.telegram_id == message.from_user.id
+
+
 async def _display_info_for(
     session: AsyncSession, telegram_id: int, fallback_name: str, fallback_username: str | None
 ) -> tuple[str, str | None]:
@@ -104,6 +119,11 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     parsed = parse_dot_command(message.text, prefix=settings.command_prefix)
     if parsed is None:
         return  # обычное сообщение, не RP-команда
+
+    if not await _is_from_connection_owner(message, session):
+        # Команду прислал не владелец бизнес-аккаунта (например клиент в переписке) —
+        # молча игнорируем, чтобы не позволить постороннему слать сообщения от имени владельца.
+        return
 
     if not db_user.is_configured:
         await _send_business_message(

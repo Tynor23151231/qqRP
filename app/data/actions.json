@@ -1,5 +1,6 @@
 {
   "муа": {
+    "aliases": ["поцеловать"],
     "verb": {"male": "поцеловал", "female": "поцеловала"},
     "template": "{user} {verb} {target}",
     "emoji_mode": "pair",
@@ -143,6 +144,7 @@
     "verb": {"male": "угостил", "female": "угостила"},
     "template": "{user} {verb} {target} печеньку",
     "emoji_mode": "fixed",
+    "sequence_mode": true,
     "emojis": [
       {"emoji": "😋", "id": "5294261750324042913"},
       {"emoji": "😋", "id": "5293990986995768044"}

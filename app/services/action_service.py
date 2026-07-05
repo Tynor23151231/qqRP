@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,7 +54,15 @@ class ActionService:
     @staticmethod
     def _load_builtin_actions() -> dict[str, dict]:
         with _ACTIONS_PATH.open("r", encoding="utf-8") as f:
-            return json.load(f)
+            data: dict[str, dict] = json.load(f)
+
+        # Разворачиваем aliases (например "поцеловать" -> тот же объект, что "муа"),
+        # чтобы команда-синоним вела себя абсолютно идентично основной.
+        for action in list(data.values()):
+            for alias in action.get("aliases", []):
+                data[alias] = action
+
+        return data
 
     def is_builtin(self, action_key: str) -> bool:
         return action_key in (ActionService._builtin_actions or {})
@@ -124,9 +133,13 @@ class ActionService:
         self, action: dict, actor: User, target_id: int, keyword: str | None
     ) -> list[tuple[str, str | None]]:
         """
-        Определяет итоговую последовательность эмодзи для встроенного действия
-        с учётом emoji_mode ('pair' | 'actor_gender' | 'fixed') и, если есть,
+        Определяет набор эмодзи-кандидатов для встроенного действия с учётом
+        emoji_mode ('pair' | 'actor_gender' | 'fixed') и, если есть,
         keyword_variants (например ".лизь попу" -> отдельный набор эмодзи).
+
+        Из набора кандидатов дальше выбирается ОДИН эмодзи случайно
+        (см. _pick_emoji), кроме действий с "sequence_mode": true —
+        там показываются все эмодзи набора сразу (например .печенье).
         """
         if keyword and "keyword_variants" in action:
             variant = action["keyword_variants"].get(keyword)
@@ -157,6 +170,16 @@ class ActionService:
 
         return []
 
+    def _pick_emoji(
+        self, action: dict, candidates: list[tuple[str, str | None]]
+    ) -> list[tuple[str, str | None]]:
+        """Случайно выбирает ОДИН эмодзи из кандидатов, если у действия не выставлен sequence_mode."""
+        if not candidates:
+            return []
+        if action.get("sequence_mode"):
+            return candidates
+        return [random.choice(candidates)]
+
     def _render_template(
         self,
         template_text: str,
@@ -172,7 +195,7 @@ class ActionService:
 
         if emoji_sequence:
             builder.add_emoji_sequence(emoji_sequence)
-            builder.add_text(" ")
+            builder.add_text(" | ")
 
         pos = 0
         for match in _TOKEN_RE.finditer(template_text):
@@ -211,7 +234,8 @@ class ActionService:
         builtin = (ActionService._builtin_actions or {}).get(action_key)
         if builtin is not None:
             verb = self._verb_form(builtin["verb"], actor.gender)
-            emoji_sequence = await self._select_builtin_emojis(builtin, actor, target_id, keyword)
+            candidates = await self._select_builtin_emojis(builtin, actor, target_id, keyword)
+            emoji_sequence = self._pick_emoji(builtin, candidates)
             return self._render_template(
                 builtin["template"], actor, target_id, target_name, target_username,
                 verb=verb, emoji_sequence=emoji_sequence,

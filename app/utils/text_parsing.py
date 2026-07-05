@@ -10,11 +10,16 @@ _USERNAME_RE = re.compile(r"^@([A-Za-z0-9_]{5,32})$")
 class ParsedCommand:
     action_key: str
     target_username: str | None
+    keyword: str | None = None
 
 
 def parse_dot_command(text: str, prefix: str = ".") -> ParsedCommand | None:
     """
-    Разбирает сообщение вида ".муа" или ".муа @username".
+    Разбирает сообщение вида:
+      ".муа"
+      ".муа @username"
+      ".лизь попу"              -> keyword="попу"
+      ".лизь попу @username"    -> keyword="попу", target_username="username"
 
     Возвращает None, если сообщение не является dot-командой
     (не начинается с префикса, или после префикса пусто).
@@ -26,16 +31,19 @@ def parse_dot_command(text: str, prefix: str = ".") -> ParsedCommand | None:
     if not body:
         return None
 
-    parts = body.split(maxsplit=1)
+    parts = body.split()
     action_key = parts[0].lower()
     if not action_key:
         return None
 
     target_username: str | None = None
-    if len(parts) > 1:
-        candidate = parts[1].strip()
-        match = _USERNAME_RE.match(candidate)
-        if match:
-            target_username = match.group(1)
+    keyword: str | None = None
 
-    return ParsedCommand(action_key=action_key, target_username=target_username)
+    for token in parts[1:]:
+        match = _USERNAME_RE.match(token)
+        if match and target_username is None:
+            target_username = match.group(1)
+        elif keyword is None:
+            keyword = token.lower()
+
+    return ParsedCommand(action_key=action_key, target_username=target_username, keyword=keyword)

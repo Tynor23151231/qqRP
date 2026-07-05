@@ -67,5 +67,15 @@ class EntityTextBuilder:
             )
         return self
 
+    def add_emoji_sequence(self, emojis: list[tuple[str, str | None]]) -> "EntityTextBuilder":
+        """
+        Добавляет несколько эмодзи подряд без пробелов между ними
+        (например несколько премиум-эмодзи одно за другим в наборе для действия),
+        каждый — со своей custom_emoji entity, если id указан.
+        """
+        for placeholder, custom_emoji_id in emojis:
+            self.add_custom_emoji(placeholder, custom_emoji_id)
+        return self
+
     def build(self) -> tuple[str, list[MessageEntity]]:
         return "".join(self._parts), self._entities

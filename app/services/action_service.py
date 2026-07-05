@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import random
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,10 +10,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CustomTrigger, Gender, User
-from app.utils.entity_builder import EntityTextBuilder, utf16_len
+from app.utils.entity_builder import EntityTextBuilder
 
 _ACTIONS_PATH = Path(__file__).resolve().parent.parent / "data" / "actions.json"
-_TOKEN_RE = re.compile(r"\{(user|target|verb|emoji)\}")
+_TOKEN_RE = re.compile(r"\{(user|target|verb)\}")
+
+# ключ для по-парного набора эмодзи: (пол автора, пол цели) -> ключ в JSON "pairs"
+_PAIR_KEYS = {
+    (Gender.MALE, Gender.FEMALE): "male_female",
+    (Gender.FEMALE, Gender.MALE): "female_male",
+    (Gender.FEMALE, Gender.FEMALE): "female_female",
+    (Gender.MALE, Gender.MALE): "male_male",
+}
 
 
 @dataclass(frozen=True)
@@ -28,7 +35,9 @@ class ActionService:
     Единая точка входа для всей логики RP-действий:
     - хранит встроенные действия (загружены один раз из JSON при старте);
     - умеет находить пользовательские триггеры в БД;
-    - рендерит итоговое красивое сообщение с учётом пола и настроек пользователя.
+    - подбирает набор премиум-эмодзи в зависимости от пола автора и/или цели;
+    - рендерит итоговое сообщение с корректными UTF-16 офсетами для ссылок-упоминаний
+      (text_link) и custom_emoji entities (см. app/utils/entity_builder.py).
 
     Добавление нового встроенного действия требует правки только actions.json —
     код сервиса менять не нужно (принцип открытости/закрытости).
@@ -48,6 +57,13 @@ class ActionService:
 
     def is_builtin(self, action_key: str) -> bool:
         return action_key in (ActionService._builtin_actions or {})
+
+    def builtin_keys(self) -> list[str]:
+        return list((ActionService._builtin_actions or {}).keys())
+
+    # ------------------------------------------------------------------ #
+    # Пользовательские (custom) триггеры
+    # ------------------------------------------------------------------ #
 
     async def get_custom_trigger(self, owner_id: int, action_key: str) -> CustomTrigger | None:
         result = await self.session.execute(
@@ -84,10 +100,62 @@ class ActionService:
         await self.session.refresh(trigger_obj)
         return trigger_obj
 
+    # ------------------------------------------------------------------ #
+    # Вспомогательное
+    # ------------------------------------------------------------------ #
+
     def _verb_form(self, verb: dict[str, str], gender: Gender) -> str:
         if gender == Gender.FEMALE:
             return verb.get("female", verb.get("male", ""))
         return verb.get("male", verb.get("female", ""))
+
+    async def _target_gender(self, target_id: int) -> Gender:
+        """Пытается определить пол цели, если она уже когда-либо запускала бота."""
+        result = await self.session.execute(select(User).where(User.telegram_id == target_id))
+        target_user = result.scalar_one_or_none()
+        if target_user is None:
+            return Gender.UNKNOWN
+        return target_user.gender
+
+    def _emoji_list_to_pairs(self, emoji_list: list[dict]) -> list[tuple[str, str | None]]:
+        return [(item["emoji"], item.get("id")) for item in emoji_list]
+
+    async def _select_builtin_emojis(
+        self, action: dict, actor: User, target_id: int, keyword: str | None
+    ) -> list[tuple[str, str | None]]:
+        """
+        Определяет итоговую последовательность эмодзи для встроенного действия
+        с учётом emoji_mode ('pair' | 'actor_gender' | 'fixed') и, если есть,
+        keyword_variants (например ".лизь попу" -> отдельный набор эмодзи).
+        """
+        if keyword and "keyword_variants" in action:
+            variant = action["keyword_variants"].get(keyword)
+            if variant is not None:
+                return self._emoji_list_to_pairs(variant["emojis"])
+
+        mode = action["emoji_mode"]
+
+        if mode == "fixed":
+            return self._emoji_list_to_pairs(action["emojis"])
+
+        if mode == "actor_gender":
+            by_gender = action["by_gender"]
+            key = "female" if actor.gender == Gender.FEMALE else "male"
+            return self._emoji_list_to_pairs(by_gender.get(key, by_gender.get("male", [])))
+
+        if mode == "pair":
+            target_gender = await self._target_gender(target_id)
+            actor_gender = actor.gender if actor.gender != Gender.UNKNOWN else Gender.MALE
+
+            if target_gender == Gender.UNKNOWN:
+                # Цель ещё не запускала бота и пол неизвестен — по умолчанию
+                # считаем разнополую пару (самый частый случай использования).
+                target_gender = Gender.FEMALE if actor_gender == Gender.MALE else Gender.MALE
+
+            pair_key = _PAIR_KEYS.get((actor_gender, target_gender), "male_female")
+            return self._emoji_list_to_pairs(action["pairs"].get(pair_key, []))
+
+        return []
 
     def _render_template(
         self,
@@ -97,11 +165,15 @@ class ActionService:
         target_name: str,
         target_username: str | None,
         verb: str | None,
-        emoji: str,
-        custom_emoji_id: str | None,
+        emoji_sequence: list[tuple[str, str | None]],
     ) -> RenderedAction:
-        """Подставляет токены {user}/{target}/{verb}/{emoji} с правильными entity-смещениями."""
+        """Подставляет токены {user}/{target}/{verb} и добавляет эмодзи-префикс с entities."""
         builder = EntityTextBuilder()
+
+        if emoji_sequence:
+            builder.add_emoji_sequence(emoji_sequence)
+            builder.add_text(" ")
+
         pos = 0
         for match in _TOKEN_RE.finditer(template_text):
             builder.add_text(template_text[pos:match.start()])
@@ -112,34 +184,15 @@ class ActionService:
                 builder.add_mention(target_name, target_id, target_username)
             elif token == "verb":
                 builder.add_text(verb or "")
-            elif token == "emoji":
-                builder.add_custom_emoji(emoji, custom_emoji_id)
             pos = match.end()
         builder.add_text(template_text[pos:])
 
         text, entities = builder.build()
-        # Эмодзи-префикс действия (для built-in действий, где {emoji} не указан в шаблоне явно)
-        if "{emoji}" not in template_text and emoji:
-            prefix_builder = EntityTextBuilder()
-            prefix_builder.add_custom_emoji(emoji, custom_emoji_id)
-            prefix_builder.add_text(" ")
-            prefix_text, prefix_entities = prefix_builder.build()
-            prefix_len = utf16_len(prefix_text)
-
-            shifted = [
-                MessageEntity(
-                    type=e.type,
-                    offset=e.offset + prefix_len,
-                    length=e.length,
-                    url=e.url,
-                    custom_emoji_id=e.custom_emoji_id,
-                )
-                for e in entities
-            ]
-            text = prefix_text + text
-            entities = prefix_entities + shifted
-
         return RenderedAction(text=text, entities=entities)
+
+    # ------------------------------------------------------------------ #
+    # Главный метод
+    # ------------------------------------------------------------------ #
 
     async def render(
         self,
@@ -148,6 +201,7 @@ class ActionService:
         target_id: int,
         target_name: str,
         target_username: str | None = None,
+        keyword: str | None = None,
     ) -> RenderedAction | None:
         """
         Возвращает готовый к отправке текст + entities (ссылки на профили, премиум эмодзи)
@@ -156,22 +210,19 @@ class ActionService:
         """
         builtin = (ActionService._builtin_actions or {}).get(action_key)
         if builtin is not None:
-            templates = builtin["templates"]
-            template = random.choice(templates) if actor.random_templates else templates[0]
-            verb = self._verb_form(template["verb"], actor.gender)
+            verb = self._verb_form(builtin["verb"], actor.gender)
+            emoji_sequence = await self._select_builtin_emojis(builtin, actor, target_id, keyword)
             return self._render_template(
-                template["text"], actor, target_id, target_name, target_username,
-                verb=verb, emoji=template["emoji"], custom_emoji_id=None,
+                builtin["template"], actor, target_id, target_name, target_username,
+                verb=verb, emoji_sequence=emoji_sequence,
             )
 
         custom = await self.get_custom_trigger(actor.id, action_key)
         if custom is not None:
+            emoji_sequence = [(custom.emoji, custom.custom_emoji_id)]
             return self._render_template(
                 custom.template, actor, target_id, target_name, target_username,
-                verb=None, emoji=custom.emoji, custom_emoji_id=custom.custom_emoji_id,
+                verb=None, emoji_sequence=emoji_sequence,
             )
 
         return None
-
-    def builtin_keys(self) -> list[str]:
-        return list((ActionService._builtin_actions or {}).keys())

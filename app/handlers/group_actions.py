@@ -85,7 +85,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
 
     action_service = ActionService(session)
     rendered = await action_service.render(
-        db_user, parsed.action_key, target_id, target_name, target_username
+        db_user, parsed.action_key, target_id, target_name, target_username, keyword=parsed.keyword
     )
     if rendered is None:
         return  # неизвестная команда — молча игнорируем, чтобы не мешать обычной переписке

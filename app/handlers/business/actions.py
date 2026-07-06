@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import User
 from app.services.action_service import ActionService
+from app.services.subscription_service import is_subscribed, subscription_required_payload
 from app.services.typing_effect import reveal_text
 from app.services.user_service import UserService
 from app.utils.entity_builder import EntityTextBuilder
@@ -123,6 +124,10 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     if typing_payload is not None:
         if not await _is_from_connection_owner(message, session):
             return
+        if not await is_subscribed(message.bot, message.from_user.id):
+            text, entities = subscription_required_payload()
+            await _send_business_message(message, text, entities)
+            return
         if not db_user.has_premium:
             b = EntityTextBuilder()
             g, gid = emoji("lock")
@@ -152,6 +157,11 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     if not await _is_from_connection_owner(message, session):
         # Команду прислал не владелец бизнес-аккаунта (например клиент в переписке) —
         # молча игнорируем, чтобы не позволить постороннему слать сообщения от имени владельца.
+        return
+
+    if not await is_subscribed(message.bot, message.from_user.id):
+        text, entities = subscription_required_payload()
+        await _send_business_message(message, text, entities)
         return
 
     if not db_user.is_configured:

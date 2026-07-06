@@ -21,17 +21,20 @@ from app.utils.premium_emoji import emoji
 router = Router(name="start")
 
 ONBOARDING_TEXT = (
-    "👋 <b>Привет! Это qqRP Bot.</b>\n\n"
-    "Я умею красиво оформлять RP-действия по коротким командам с точкой — "
-    f"например <code>{settings.command_prefix}муа</code>, <code>{settings.command_prefix}обнять</code>, "
+    '<tg-emoji emoji-id="5233599134019100925">👋</tg-emoji> <b>Привет! Это qqRP Bot.</b>\n\n'
+    "Я умею красиво оформлять RP-действия по коротким командам с точкой — например "
+    f"<code>{settings.command_prefix}муа</code>, <code>{settings.command_prefix}обнять</code>, "
     f"<code>{settings.command_prefix}цветы</code>.\n\n"
+    f"Также поддерживаю стили печатания <code>{settings.command_prefix}typing</code>, и в будущем "
+    f"будут только добавляться — следи за новостями в @{settings.required_channel_username}.\n\n"
     "<b>Как это работает:</b>\n"
-    "1️⃣ Подключаешь меня как Telegram Business Bot к своему аккаунту\n"
-    "2️⃣ Пишешь в любом чате (личном или группе) команду вида "
-    f"<code>{settings.command_prefix}муа</code> (в ответ на сообщение человека, "
-    "или с <code>@username</code> после команды)\n"
-    "3️⃣ Я удаляю твоё сообщение-команду и отправляю красивое RP-действие "
-    "с кликабельными именами вместо него\n\n"
+    '<tg-emoji emoji-id="5447584416274595624">1️⃣</tg-emoji> Подключаешь меня как Telegram Business '
+    "Bot к своему аккаунту\n"
+    '<tg-emoji emoji-id="5447569199205468152">2️⃣</tg-emoji> Пишешь в любом чате (личном или группе) '
+    f"команду вида <code>{settings.command_prefix}муа</code> (в ответ на сообщение человека, или с "
+    "<code>@username</code> после команды)\n"
+    '<tg-emoji emoji-id="5438196446694228650">3️⃣</tg-emoji> Я удаляю твоё сообщение-команду и '
+    "отправляю красивое RP-действие с кликабельными именами вместо него\n\n"
     "Для начала выбери свой пол — это нужно, чтобы правильно склонять действия "
     "(«поцеловал» / «поцеловала»):"
 )

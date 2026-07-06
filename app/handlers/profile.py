@@ -11,25 +11,39 @@ from app.keyboards.profile import profile_keyboard
 from app.keyboards.settings import settings_keyboard
 from app.models import Gender, User
 from app.services.user_service import UserService
+from app.utils.entity_builder import EntityTextBuilder
+from app.utils.premium_emoji import emoji
 
 router = Router(name="profile")
 
-_GENDER_LABEL = {
-    Gender.MALE: "👨 Мужчина",
-    Gender.FEMALE: "👩 Женщина",
-    Gender.UNKNOWN: "❔ Не выбран",
-}
 
-
-def _format_profile(user: User) -> str:
-    reg_date = user.registered_at.strftime("%d.%m.%Y") if user.registered_at else "—"
-    lines = ["👤 <b>Профиль</b>\n", f"Имя: {user.first_name}"]
+def _format_profile_entities(user: User, favorite: str) -> tuple[str, list]:
+    b = EntityTextBuilder()
+    glyph, cid = emoji("profile")
+    b.add_custom_emoji(glyph, cid)
+    b.add_text(" ")
+    b.add_bold("Профиль")
+    b.add_text(f"\n\nИмя: {user.first_name}\n")
     if user.username:
-        lines.append(f"Username: @{user.username}")
-    lines.append(f"Пол: {_GENDER_LABEL[user.gender]}")
-    lines.append(f"Использований бота: {user.total_actions}")
-    lines.append(f"Дата регистрации: {reg_date}")
-    return "\n".join(lines) + "\n"
+        b.add_text(f"Username: @{user.username}\n")
+
+    b.add_text("Пол: ")
+    if user.gender == Gender.MALE:
+        g, gid = emoji("male")
+        b.add_custom_emoji(g, gid)
+        b.add_text(" Мужчина\n")
+    elif user.gender == Gender.FEMALE:
+        g, gid = emoji("female")
+        b.add_custom_emoji(g, gid)
+        b.add_text(" Женщина\n")
+    else:
+        b.add_text("❔ Не выбран\n")
+
+    reg_date = user.registered_at.strftime("%d.%m.%Y") if user.registered_at else "—"
+    b.add_text(f"Использований бота: {user.total_actions}\n")
+    b.add_text(f"Дата регистрации: {reg_date}\n")
+    b.add_text(f"Любимое действие: {favorite}")
+    return b.build()
 
 
 @router.message(Command("profile"))
@@ -38,8 +52,10 @@ async def cmd_profile(message: Message, db_user: User, session: AsyncSession) ->
     stats = await service.get_stats(db_user)
     favorite = stats["favorite"] or "ещё нет"
 
-    text = _format_profile(db_user) + f"Любимое действие: {favorite}"
-    await message.answer(text, reply_markup=with_back_button(profile_keyboard()))
+    text, entities = _format_profile_entities(db_user, favorite)
+    await message.answer(
+        text, entities=entities, parse_mode=None, reply_markup=with_back_button(profile_keyboard())
+    )
 
 
 @router.callback_query(F.data == "profile:change_gender")

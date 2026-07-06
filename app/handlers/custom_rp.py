@@ -4,24 +4,104 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import User
+from app.keyboards.menu import back_to_menu_row
+from app.models import CustomTrigger, User
 from app.services.action_service import ActionService
+from app.utils.entity_builder import EntityTextBuilder
+from app.utils.premium_emoji import emoji
 
 router = Router(name="custom_rp")
 
-_PAYWALL_TEXT = (
-    "🔒 <b>Создание своих РП-действий — премиум-функция</b>\n\n"
-    f"За {settings.premium_price_stars} ⭐️ на {settings.premium_duration_days} дней открывается:\n"
-    "• создание собственных команд через <code>/addrp</code> (в том числе с несколькими "
-    "премиум-эмодзи в одном действии, из которых при каждом использовании случайно "
-    "выбирается один)\n"
-    "• <code>.typing</code>\n\n"
-    "Оформить: /premium"
-)
+
+def _paywall_payload() -> tuple[str, list]:
+    b = EntityTextBuilder()
+    g, gid = emoji("lock")
+    b.add_custom_emoji(g, gid)
+    b.add_text(" ")
+    b.add_bold("Создание своих РП-действий — премиум-функция")
+    b.add_text(
+        f"\n\nЗа {settings.premium_price_stars} ⭐️ на {settings.premium_duration_days} дней открывается:\n"
+        "• создание собственных команд через "
+    )
+    b.add_code("/addrp")
+    b.add_text(
+        " (в том числе с несколькими премиум-эмодзи в одном действии, из которых при каждом "
+        "использовании случайно выбирается один)\n"
+        "• своё действие может переопределить даже встроенную команду (например свой "
+    )
+    b.add_code(f"{settings.command_prefix}муа")
+    b.add_text(" вместо стандартного) — удалишь своё, вернётся встроенное\n• ")
+    b.add_code(f"{settings.command_prefix}typing")
+    b.add_text("\n\nОформить: ")
+    b.add_code("/premium")
+    return b.build()
+
+
+async def _my_rp_list_payload(db_user: User, session: AsyncSession) -> tuple[str, list]:
+    action_service = ActionService(session)
+    triggers = await action_service.list_custom_triggers(db_user.id)
+
+    b = EntityTextBuilder()
+    g, gid = emoji("addrp")
+    b.add_custom_emoji(g, gid)
+    b.add_text(" ")
+    b.add_bold("Свои RP-действия")
+
+    if not triggers:
+        b.add_text("\n\nПока не создано ни одного своего действия.")
+    else:
+        b.add_text("\n\n")
+        for t in triggers:
+            is_override = action_service.is_builtin(t.trigger)
+            b.add_text(f"{t.emoji} ")
+            b.add_code(f"{settings.command_prefix}{t.trigger}")
+            if is_override:
+                b.add_text(" (переопределяет встроенное)")
+            b.add_text("\n")
+
+    return b.build()
+
+
+def _my_rp_keyboard(triggers: list[CustomTrigger]) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for t in triggers:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"✏️ .{t.trigger}", callback_data=f"myrp:edit:{t.trigger}"
+                ),
+                InlineKeyboardButton(
+                    text="🗑 Удалить", callback_data=f"myrp:delete:{t.trigger}", style="danger"
+                ),
+            ]
+        )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="Создать новое", callback_data="myrp:new", icon_custom_emoji_id=emoji("addrp")[1]
+            )
+        ]
+    )
+    rows.append(back_to_menu_row())
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def my_rp_screen(
+    db_user: User, session: AsyncSession
+) -> tuple[str, list, InlineKeyboardMarkup]:
+    """Единая точка входа для экрана «Своё RP» — используется и из /addrp, и из меню."""
+    if not db_user.has_premium:
+        text, entities = _paywall_payload()
+        return text, entities, InlineKeyboardMarkup(inline_keyboard=[back_to_menu_row()])
+
+    action_service = ActionService(session)
+    triggers = await action_service.list_custom_triggers(db_user.id)
+    text, entities = await _my_rp_list_payload(db_user, session)
+    return text, entities, _my_rp_keyboard(triggers)
 
 
 class AddRPStates(StatesGroup):
@@ -30,17 +110,64 @@ class AddRPStates(StatesGroup):
     waiting_template = State()
 
 
+async def _start_trigger_step(message: Message, state: FSMContext) -> None:
+    await state.set_state(AddRPStates.waiting_trigger)
+    await message.answer(
+        "✍️ Введи триггер-слово/фразу для действия (то, что будет писаться после точки).\n\n"
+        "Если укажешь слово уже существующего своего действия или даже встроенной команды "
+        "(например <code>муа</code>) — оно будет переопределено этим новым.\n\n"
+        "Например: <code>выепать</code>"
+    )
+
+
 @router.message(Command("addrp"))
 async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None:
     if not db_user.has_premium:
-        await message.answer(_PAYWALL_TEXT)
+        text, entities = _paywall_payload()
+        await message.answer(text, entities=entities, parse_mode=None)
         return
 
-    await state.set_state(AddRPStates.waiting_trigger)
-    await message.answer(
-        "✍️ Введи триггер-слово/фразу для нового действия (то, что будет писаться после точки).\n\n"
-        "Например: <code>выепать</code>"
+    await _start_trigger_step(message, state)
+
+
+@router.callback_query(F.data == "myrp:new")
+async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User) -> None:
+    if not db_user.has_premium:
+        await callback.answer("Нужен премиум", show_alert=True)
+        return
+    await callback.answer()
+    await _start_trigger_step(callback.message, state)
+
+
+@router.callback_query(F.data.startswith("myrp:edit:"))
+async def cb_myrp_edit(callback: CallbackQuery, state: FSMContext, db_user: User) -> None:
+    trigger = callback.data.split(":", 2)[2]
+    await state.update_data(trigger=trigger)
+    await state.set_state(AddRPStates.waiting_emoji)
+    await callback.answer()
+    await callback.message.answer(
+        f"✏️ Редактируем <code>{settings.command_prefix}{trigger}</code>.\n\n"
+        "🎨 Отправь один или несколько эмодзи для этого действия одним сообщением "
+        "(поддерживаются премиум-эмодзи — можно вставить сразу несколько подряд, "
+        "при каждом использовании один будет выбираться случайно). Старые эмодзи и текст "
+        "будут заменены на новые."
     )
+
+
+@router.callback_query(F.data.startswith("myrp:delete:"))
+async def cb_myrp_delete(callback: CallbackQuery, db_user: User, session: AsyncSession) -> None:
+    trigger = callback.data.split(":", 2)[2]
+    action_service = ActionService(session)
+    deleted = await action_service.delete_custom_trigger(db_user.id, trigger)
+
+    if deleted:
+        note = " Встроенное действие с этим именем снова активно." if action_service.is_builtin(trigger) else ""
+        await callback.answer(f"Удалено.{note}", show_alert=True)
+    else:
+        await callback.answer("Уже удалено", show_alert=True)
+
+    text, entities, keyboard = await my_rp_screen(db_user, session)
+    await callback.message.edit_text(text, entities=entities, parse_mode=None, reply_markup=keyboard)
 
 
 @router.message(AddRPStates.waiting_trigger, F.text)
@@ -99,7 +226,8 @@ async def on_template_entered(
     if not db_user.has_premium:
         # Премиум мог закончиться прямо во время диалога — перепроверяем перед сохранением.
         await state.clear()
-        await message.answer(_PAYWALL_TEXT)
+        text, entities = _paywall_payload()
+        await message.answer(text, entities=entities, parse_mode=None)
         return
 
     template = message.text.strip()
@@ -119,6 +247,12 @@ async def on_template_entered(
     )
     await state.clear()
 
+    override_note = (
+        " Оно переопределяет встроенную команду — если удалишь своё, вернётся стандартное поведение."
+        if action_service.is_builtin(trigger_obj.trigger)
+        else ""
+    )
     await message.answer(
-        f"✅ Готово! Новое действие <code>.{trigger_obj.trigger}</code> добавлено и уже доступно в чатах."
+        f"✅ Готово! Действие <code>{settings.command_prefix}{trigger_obj.trigger}</code> "
+        f"сохранено и уже доступно в чатах.{override_note}"
     )

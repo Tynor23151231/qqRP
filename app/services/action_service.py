@@ -130,20 +130,47 @@ class ActionService:
         emojis — список (emoji, custom_emoji_id) в порядке добавления. При каждом
         использовании действия случайно выбирается один эмодзи из набора (как и
         у встроенных действий) — премиум-пользователи могут задать сразу несколько.
+
+        Если у owner уже есть триггер с таким именем — обновляет его на месте
+        (апдейт), а не создаёт дубликат: пользователь может как создавать новые
+        действия, так и переопределять/менять существующие (в т.ч. встроенные —
+        см. приоритет custom > builtin в render()).
         """
         first_emoji, first_custom_id = emojis[0] if emojis else ("✨", None)
+        emojis_json = json.dumps([{"emoji": e, "id": cid} for e, cid in emojis])
+
+        existing = await self.get_custom_trigger(owner.id, trigger)
+        if existing is not None:
+            existing.emoji = first_emoji
+            existing.custom_emoji_id = first_custom_id
+            existing.emojis_json = emojis_json
+            existing.template = template
+            await self.session.commit()
+            await self.session.refresh(existing)
+            return existing
+
         trigger_obj = CustomTrigger(
             owner_id=owner.id,
             trigger=trigger,
             emoji=first_emoji,
             custom_emoji_id=first_custom_id,
-            emojis_json=json.dumps([{"emoji": e, "id": cid} for e, cid in emojis]),
+            emojis_json=emojis_json,
             template=template,
         )
         self.session.add(trigger_obj)
         await self.session.commit()
         await self.session.refresh(trigger_obj)
         return trigger_obj
+
+    async def delete_custom_trigger(self, owner_id: int, trigger: str) -> bool:
+        """Удаляет свой триггер. Если он совпадал по имени со встроенным действием —
+        поведение автоматически вернётся к встроенному (см. приоритет в render())."""
+        existing = await self.get_custom_trigger(owner_id, trigger)
+        if existing is None:
+            return False
+        await self.session.delete(existing)
+        await self.session.commit()
+        return True
 
     # ------------------------------------------------------------------ #
     # Вспомогательное
@@ -266,7 +293,21 @@ class ActionService:
         Возвращает готовый к отправке текст + entities (ссылки на профили, премиум эмодзи)
         либо None, если такого действия не существует ни среди встроенных,
         ни среди пользовательских триггеров actor'а.
+
+        Приоритет: если у actor'а есть СВОЙ триггер с этим именем (в т.ч. совпадающий
+        по имени со встроенным действием) — используется он. Так пользователь может
+        переопределить даже встроенное действие своим текстом/эмодзи; если он потом
+        удалит свой триггер — поведение вернётся к встроенному автоматически.
         """
+        custom = await self.get_custom_trigger(actor.id, action_key)
+        if custom is not None:
+            candidates = self._custom_trigger_emojis(custom)
+            emoji_sequence = [random.choice(candidates)] if candidates else []
+            return self._render_template(
+                custom.template, actor, target_id, target_name, target_username,
+                verb=None, emoji_sequence=emoji_sequence,
+            )
+
         builtin = (ActionService._builtin_actions or {}).get(action_key)
         if builtin is not None:
             verb = self._verb_form(builtin["verb"], actor.gender)
@@ -275,15 +316,6 @@ class ActionService:
             return self._render_template(
                 builtin["template"], actor, target_id, target_name, target_username,
                 verb=verb, emoji_sequence=emoji_sequence,
-            )
-
-        custom = await self.get_custom_trigger(actor.id, action_key)
-        if custom is not None:
-            candidates = self._custom_trigger_emojis(custom)
-            emoji_sequence = [random.choice(candidates)] if candidates else []
-            return self._render_template(
-                custom.template, actor, target_id, target_name, target_username,
-                verb=None, emoji_sequence=emoji_sequence,
             )
 
         return None

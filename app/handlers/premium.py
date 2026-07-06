@@ -16,6 +16,8 @@ from app.config import settings
 from app.keyboards.menu import with_back_button
 from app.models import User
 from app.services.user_service import UserService
+from app.utils.entity_builder import EntityTextBuilder
+from app.utils.premium_emoji import emoji
 
 router = Router(name="premium")
 
@@ -27,35 +29,54 @@ def _buy_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"💫 Купить премиум за {settings.premium_price_stars} ⭐️",
+                    text=f"Купить премиум за {settings.premium_price_stars} ⭐️",
                     callback_data="premium:buy",
+                    icon_custom_emoji_id=emoji("premium")[1],
+                    style="success",
                 )
             ]
         ]
     )
 
 
-def _status_text(user: User) -> str:
+def _status_text(user: User) -> tuple[str, list]:
+    b = EntityTextBuilder()
     if user.has_premium:
         until = user.premium_until.strftime("%d.%m.%Y %H:%M UTC")
-        return (
-            "💎 <b>У тебя активен премиум!</b>\n\n"
-            f"Действует до: {until}\n\n"
+        g, gid = emoji("premium")
+        b.add_custom_emoji(g, gid)
+        b.add_text(" ")
+        b.add_bold("У тебя активен премиум!")
+        b.add_text(
+            f"\n\nДействует до: {until}\n\n"
             f"Продлить ещё на {settings.premium_duration_days} дней можно уже сейчас — "
             "дни просто добавятся к текущему сроку."
         )
-    return (
-        "🔒 <b>Премиум-функции</b>\n\n"
-        f"За {settings.premium_price_stars} ⭐️ (Telegram Stars) на {settings.premium_duration_days} дней "
-        "открывается:\n"
-        "• <code>.typing</code> — постепенное \"печатание\" сообщения по буквам\n\n"
-        "Оплата происходит прямо в Telegram, без банковских карт и комиссий."
+        return b.build()
+
+    g, gid = emoji("lock")
+    b.add_custom_emoji(g, gid)
+    b.add_text(" ")
+    b.add_bold("Премиум-функции")
+    b.add_text(
+        f"\n\nЗа {settings.premium_price_stars} ⭐️ (Telegram Stars) на "
+        f"{settings.premium_duration_days} дней открывается:\n"
+        "• "
     )
+    b.add_code(f"{settings.command_prefix}typing")
+    b.add_text(" — постепенное \"печатание\" сообщения по буквам\n")
+    b.add_text("• создание и переопределение своих RP-действий через ")
+    b.add_code("/addrp")
+    b.add_text("\n\nОплата происходит прямо в Telegram, без банковских карт и комиссий.")
+    return b.build()
 
 
 @router.message(Command("premium"))
 async def cmd_premium(message: Message, db_user: User) -> None:
-    await message.answer(_status_text(db_user), reply_markup=with_back_button(_buy_keyboard()))
+    text, entities = _status_text(db_user)
+    await message.answer(
+        text, entities=entities, parse_mode=None, reply_markup=with_back_button(_buy_keyboard())
+    )
 
 
 @router.callback_query(F.data == "premium:buy")

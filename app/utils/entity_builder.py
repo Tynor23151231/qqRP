@@ -53,6 +53,18 @@ class EntityTextBuilder:
         )
         return self
 
+    def add_bold(self, text: str) -> "EntityTextBuilder":
+        start = self._offset
+        self.add_text(text)
+        self._entities.append(MessageEntity(type="bold", offset=start, length=utf16_len(text)))
+        return self
+
+    def add_code(self, text: str) -> "EntityTextBuilder":
+        start = self._offset
+        self.add_text(text)
+        self._entities.append(MessageEntity(type="code", offset=start, length=utf16_len(text)))
+        return self
+
     def add_custom_emoji(self, placeholder: str, custom_emoji_id: str | None) -> "EntityTextBuilder":
         start = self._offset
         self.add_text(placeholder)

@@ -12,6 +12,8 @@ from app.models import User
 from app.services.action_service import ActionService
 from app.services.typing_effect import reveal_text
 from app.services.user_service import UserService
+from app.utils.entity_builder import EntityTextBuilder
+from app.utils.premium_emoji import emoji
 from app.utils.text_parsing import parse_dot_command, parse_typing_command
 
 logger = logging.getLogger(__name__)
@@ -122,13 +124,19 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         if not await _is_from_connection_owner(message, session):
             return
         if not db_user.has_premium:
-            await _send_business_message(
-                message,
-                "🔒 <code>.typing</code> — платная функция "
-                f"({settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). "
-                "Оформи в личном чате с ботом командой /premium.",
-                None,
+            b = EntityTextBuilder()
+            g, gid = emoji("lock")
+            b.add_custom_emoji(g, gid)
+            b.add_text(" ")
+            b.add_code(f"{settings.command_prefix}typing")
+            b.add_text(
+                f" — платная функция ({settings.premium_price_stars} ⭐️ / "
+                f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой "
             )
+            b.add_code("/premium")
+            b.add_text(".")
+            text, entities = b.build()
+            await _send_business_message(message, text, entities)
             return
         await _delete_source_message(message)
         await reveal_text(
@@ -155,17 +163,19 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         return
 
     action_service = ActionService(session)
-    if not action_service.is_builtin(parsed.action_key):
-        custom = await action_service.get_custom_trigger(db_user.id, parsed.action_key)
-        if custom is not None and not db_user.has_premium:
-            await _send_business_message(
-                message,
-                "🔒 Это своё РП-действие требует активного премиума "
-                f"({settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). "
-                "Оформи в личном чате с ботом командой /premium.",
-                None,
-            )
-            return
+    custom = await action_service.get_custom_trigger(db_user.id, parsed.action_key)
+    if custom is not None and not db_user.has_premium:
+        b = EntityTextBuilder()
+        g, gid = emoji("lock")
+        b.add_custom_emoji(g, gid)
+        b.add_text(" Это своё РП-действие требует активного премиума (")
+        b.add_text(f"{settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). ")
+        b.add_text("Оформи в личном чате с ботом командой ")
+        b.add_code("/premium")
+        b.add_text(".")
+        text, entities = b.build()
+        await _send_business_message(message, text, entities)
+        return
 
     target = await _resolve_target(message, parsed.target_username, session)
     if target is None:

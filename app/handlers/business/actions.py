@@ -121,6 +121,15 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     if typing_payload is not None:
         if not await _is_from_connection_owner(message, session):
             return
+        if not db_user.has_premium:
+            await _send_business_message(
+                message,
+                "🔒 <code>.typing</code> — платная функция "
+                f"({settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). "
+                "Оформи в личном чате с ботом командой /premium.",
+                None,
+            )
+            return
         await _delete_source_message(message)
         await reveal_text(
             message.bot, message.chat.id, typing_payload,

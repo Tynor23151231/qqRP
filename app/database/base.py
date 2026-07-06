@@ -32,6 +32,9 @@ async def _run_light_migrations() -> None:
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_name VARCHAR(128)")
         )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMPTZ")
+        )
 
 
 async def init_models() -> None:

@@ -35,6 +35,9 @@ class User(Base):
     total_actions: Mapped[int] = mapped_column(default=0)
     last_used_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Премиум-подписка (платные функции вроде .typing)
+    premium_until: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     action_logs: Mapped[list["ActionLog"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -45,6 +48,16 @@ class User(Base):
     @property
     def is_configured(self) -> bool:
         return self.gender != Gender.UNKNOWN
+
+    @property
+    def has_premium(self) -> bool:
+        if self.premium_until is None:
+            return False
+        now = dt.datetime.now(dt.timezone.utc)
+        premium_until = self.premium_until
+        if premium_until.tzinfo is None:
+            premium_until = premium_until.replace(tzinfo=dt.timezone.utc)
+        return premium_until > now
 
     @property
     def display_name(self) -> str:

@@ -24,6 +24,18 @@ class UserService:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_username(self, username: str) -> User | None:
+        result = await self.session.execute(
+            select(User).where(User.username == username.lstrip("@"))
+        )
+        return result.scalar_one_or_none()
+
+    async def list_premium_users(self) -> list[User]:
+        result = await self.session.execute(
+            select(User).where(User.premium_until.is_not(None)).order_by(User.premium_until.desc())
+        )
+        return [u for u in result.scalars().all() if u.has_premium]
+
     async def get_or_create(
         self,
         telegram_id: int,
@@ -61,6 +73,27 @@ class UserService:
 
     async def set_business_connection(self, user: User, connection_id: str | None) -> None:
         user.business_connection_id = connection_id
+        await self.session.commit()
+
+    async def grant_premium(self, user: User, days: int, extend: bool = True) -> dt.datetime:
+        """
+        Выдаёт/продлевает премиум на `days` дней от текущего момента.
+        Если extend=True и подписка ещё активна — продлеваем от даты её окончания
+        (а не от "сейчас"), чтобы повторная покупка не пропадала впустую.
+        """
+        now = dt.datetime.now(dt.timezone.utc)
+        base = now
+        if extend and user.has_premium and user.premium_until is not None:
+            base = user.premium_until
+            if base.tzinfo is None:
+                base = base.replace(tzinfo=dt.timezone.utc)
+
+        user.premium_until = base + dt.timedelta(days=days)
+        await self.session.commit()
+        return user.premium_until
+
+    async def revoke_premium(self, user: User) -> None:
+        user.premium_until = None
         await self.session.commit()
 
     async def update_settings(

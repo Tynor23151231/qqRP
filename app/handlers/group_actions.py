@@ -63,6 +63,13 @@ async def _delete_source_message(message: Message) -> None:
 async def handle_dot_command(message: Message, db_user: User, session: AsyncSession) -> None:
     typing_payload = parse_typing_command(message.text, prefix=settings.command_prefix)
     if typing_payload is not None:
+        if not db_user.has_premium:
+            await message.reply(
+                "🔒 <code>.typing</code> — платная функция "
+                f"({settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). "
+                "Оформи в личном чате с ботом командой /premium."
+            )
+            return
         await _delete_source_message(message)
         await reveal_text(message.bot, message.chat.id, typing_payload)
         return

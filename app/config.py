@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,8 +15,13 @@ class Settings(BaseSettings):
     # Префикс, с которого начинаются RP-команды (по ТЗ — точка)
     command_prefix: str = "."
 
-    # Owner / admin telegram id (для служебных команд, если понадобятся)
-    admin_id: int | None = None
+    # ID администраторов бота (через запятую в .env), которые могут выдавать/забирать
+    # премиум через встроенную админ-консоль (/admin). Пример: ADMIN_IDS=123456789,987654321
+    admin_ids_raw: str = Field(default="", validation_alias="ADMIN_IDS")
+
+    # Стоимость и длительность премиум-подписки (Telegram Stars, XTR)
+    premium_price_stars: int = 99
+    premium_duration_days: int = 30
 
     # Значения по умолчанию для пользовательских настроек
     default_language: str = "ru"
@@ -38,6 +43,19 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://") and "+asyncpg" not in value:
             return value.replace("postgresql://", "postgresql+asyncpg://", 1)
         return value
+
+    @property
+    def admin_ids(self) -> list[int]:
+        """ADMIN_IDS="123,456" -> [123, 456]. Пустые/некорректные значения игнорируются."""
+        ids: list[int] = []
+        for chunk in self.admin_ids_raw.split(","):
+            chunk = chunk.strip()
+            if chunk.isdigit():
+                ids.append(int(chunk))
+        return ids
+
+    def is_admin(self, telegram_id: int) -> bool:
+        return telegram_id in self.admin_ids
 
 
 settings = Settings()  # type: ignore[call-arg]

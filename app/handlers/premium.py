@@ -13,6 +13,7 @@ from aiogram.types import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.keyboards.menu import with_back_button
 from app.models import User
 from app.services.user_service import UserService
 
@@ -54,7 +55,7 @@ def _status_text(user: User) -> str:
 
 @router.message(Command("premium"))
 async def cmd_premium(message: Message, db_user: User) -> None:
-    await message.answer(_status_text(db_user), reply_markup=_buy_keyboard())
+    await message.answer(_status_text(db_user), reply_markup=with_back_button(_buy_keyboard()))
 
 
 @router.callback_query(F.data == "premium:buy")

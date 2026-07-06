@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.keyboards.gender import gender_keyboard
+from app.keyboards.menu import with_back_button
 from app.keyboards.profile import profile_keyboard
 from app.keyboards.settings import settings_keyboard
 from app.models import Gender, User
@@ -38,7 +39,7 @@ async def cmd_profile(message: Message, db_user: User, session: AsyncSession) ->
     favorite = stats["favorite"] or "ещё нет"
 
     text = _format_profile(db_user) + f"Любимое действие: {favorite}"
-    await message.answer(text, reply_markup=profile_keyboard())
+    await message.answer(text, reply_markup=with_back_button(profile_keyboard()))
 
 
 @router.callback_query(F.data == "profile:change_gender")
@@ -53,11 +54,13 @@ async def cb_stats_from_profile(callback: CallbackQuery, db_user: User, session:
 
     service = UserService(session)
     stats = await service.get_stats(db_user)
-    await callback.message.edit_text(format_stats_text(stats))
+    await callback.message.edit_text(format_stats_text(stats), reply_markup=with_back_button(profile_keyboard()))
     await callback.answer()
 
 
 @router.callback_query(F.data == "profile:settings")
 async def cb_settings_from_profile(callback: CallbackQuery, db_user: User) -> None:
-    await callback.message.edit_text("⚙️ <b>Настройки</b>", reply_markup=settings_keyboard(db_user))
+    await callback.message.edit_text(
+        "⚙️ <b>Настройки</b>", reply_markup=with_back_button(settings_keyboard(db_user))
+    )
     await callback.answer()

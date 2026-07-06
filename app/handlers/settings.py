@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.keyboards.gender import gender_keyboard
+from app.keyboards.menu import with_back_button
 from app.keyboards.settings import settings_keyboard
 from app.models import User
 from app.services.user_service import UserService
@@ -24,7 +25,7 @@ class ChangeNameStates(StatesGroup):
 
 @router.message(Command("settings"))
 async def cmd_settings(message: Message, db_user: User) -> None:
-    await message.answer("⚙️ <b>Настройки</b>", reply_markup=settings_keyboard(db_user))
+    await message.answer("⚙️ <b>Настройки</b>", reply_markup=with_back_button(settings_keyboard(db_user)))
 
 
 @router.callback_query(F.data == "settings:change_gender")
@@ -77,7 +78,7 @@ async def cb_toggle_setting(callback: CallbackQuery, db_user: User, session: Asy
     service = UserService(session)
     await service.update_settings(db_user, **{field: new_value})
 
-    await callback.message.edit_reply_markup(reply_markup=settings_keyboard(db_user))
+    await callback.message.edit_reply_markup(reply_markup=with_back_button(settings_keyboard(db_user)))
     await callback.answer("Сохранено")
 
 

@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.keyboards.menu import back_only_keyboard
 from app.models import User
 from app.services.user_service import UserService
 
@@ -36,4 +37,4 @@ def format_stats_text(stats: dict) -> str:
 async def cmd_stats(message: Message, db_user: User, session: AsyncSession) -> None:
     service = UserService(session)
     stats = await service.get_stats(db_user)
-    await message.answer(format_stats_text(stats))
+    await message.answer(format_stats_text(stats), reply_markup=back_only_keyboard())

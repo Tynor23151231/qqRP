@@ -7,10 +7,21 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models import User
 from app.services.action_service import ActionService
 
 router = Router(name="custom_rp")
+
+_PAYWALL_TEXT = (
+    "🔒 <b>Создание своих РП-действий — премиум-функция</b>\n\n"
+    f"За {settings.premium_price_stars} ⭐️ на {settings.premium_duration_days} дней открывается:\n"
+    "• создание собственных команд через <code>/addrp</code> (в том числе с несколькими "
+    "премиум-эмодзи в одном действии, из которых при каждом использовании случайно "
+    "выбирается один)\n"
+    "• <code>.typing</code>\n\n"
+    "Оформить: /premium"
+)
 
 
 class AddRPStates(StatesGroup):
@@ -20,7 +31,11 @@ class AddRPStates(StatesGroup):
 
 
 @router.message(Command("addrp"))
-async def cmd_add_rp(message: Message, state: FSMContext) -> None:
+async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None:
+    if not db_user.has_premium:
+        await message.answer(_PAYWALL_TEXT)
+        return
+
     await state.set_state(AddRPStates.waiting_trigger)
     await message.answer(
         "✍️ Введи триггер-слово/фразу для нового действия (то, что будет писаться после точки).\n\n"
@@ -38,33 +53,41 @@ async def on_trigger_entered(message: Message, state: FSMContext) -> None:
     await state.update_data(trigger=trigger)
     await state.set_state(AddRPStates.waiting_emoji)
     await message.answer(
-        "🎨 Отправь эмодзи для этого действия (поддерживается премиум-эмодзи Telegram)."
+        "🎨 Отправь один или несколько эмодзи для этого действия одним сообщением "
+        "(поддерживаются премиум-эмодзи Telegram — можно вставить сразу несколько подряд, "
+        "при каждом использовании действия один из них будет выбираться случайно)."
     )
 
 
 @router.message(AddRPStates.waiting_emoji)
 async def on_emoji_entered(message: Message, state: FSMContext) -> None:
-    custom_emoji_id: str | None = None
-    fallback_emoji = "✨"
+    emojis: list[tuple[str, str | None]] = []
 
     if message.entities:
         for entity in message.entities:
             if entity.type == "custom_emoji":
-                custom_emoji_id = entity.custom_emoji_id
-                fallback_emoji = message.text[entity.offset:entity.offset + entity.length]
-                break
+                placeholder = message.text[entity.offset:entity.offset + entity.length]
+                emojis.append((placeholder, entity.custom_emoji_id))
 
-    if custom_emoji_id is None and message.text:
-        fallback_emoji = message.text.strip()[:8] or fallback_emoji
+    if not emojis and message.text:
+        # Обычные (не премиум) эмодзи/символы — берём как один вариант без custom_emoji_id.
+        fallback = message.text.strip()[:8]
+        if fallback:
+            emojis = [(fallback, None)]
 
-    await state.update_data(emoji=fallback_emoji, custom_emoji_id=custom_emoji_id)
+    if not emojis:
+        await message.answer("Не нашёл ни одного эмодзи в сообщении. Пришли ещё раз:")
+        return
+
+    await state.update_data(emojis=emojis)
     await state.set_state(AddRPStates.waiting_template)
 
     data = await state.get_data()
     trigger = data["trigger"]
+    count_note = f" (сохранил {len(emojis)} шт., один будет выбираться случайно)" if len(emojis) > 1 else ""
     await message.answer(
-        "📝 Теперь введи текст действия. Используй <code>{user}</code> и <code>{target}</code> "
-        "как плейсхолдеры для имён.\n\n"
+        f"Принято{count_note}. 📝 Теперь введи текст действия. Используй <code>{{user}}</code> и "
+        "<code>{target}</code> как плейсхолдеры для имён.\n\n"
         f"Например: <code>{{user}} выебал(а) {trigger}а {{target}}</code>"
     )
 
@@ -73,6 +96,12 @@ async def on_emoji_entered(message: Message, state: FSMContext) -> None:
 async def on_template_entered(
     message: Message, state: FSMContext, db_user: User, session: AsyncSession
 ) -> None:
+    if not db_user.has_premium:
+        # Премиум мог закончиться прямо во время диалога — перепроверяем перед сохранением.
+        await state.clear()
+        await message.answer(_PAYWALL_TEXT)
+        return
+
     template = message.text.strip()
     if "{user}" not in template or "{target}" not in template:
         await message.answer(
@@ -85,9 +114,8 @@ async def on_template_entered(
     trigger_obj = await action_service.create_custom_trigger(
         owner=db_user,
         trigger=data["trigger"],
-        emoji=data["emoji"],
+        emojis=data["emojis"],
         template=template,
-        custom_emoji_id=data.get("custom_emoji_id"),
     )
     await state.clear()
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -24,11 +24,18 @@ class CustomTrigger(Base):
     # Слово/фраза после точки, например "выепать" -> команда .выепать
     trigger: Mapped[str] = mapped_column(String(64), index=True)
 
-    # Обычное emoji-представление (fallback, если премиум эмодзи не поддерживается получателем)
+    # Обычное emoji-представление (fallback для первого эмодзи, если премиум не поддержан получателем)
     emoji: Mapped[str] = mapped_column(String(16), default="✨")
 
-    # ID премиум (кастомного) эмодзи, если пользователь прислал именно его
+    # ID премиум (кастомного) эмодзи для первого эмодзи — оставлено для обратной
+    # совместимости с действиями, созданными до поддержки нескольких эмодзи.
     custom_emoji_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Полный набор эмодзи в формате JSON: [{"emoji": "😛", "id": "123..."}, ...].
+    # При использовании действия из набора случайно выбирается один эмодзи —
+    # как и у встроенных действий. Если пусто (старые записи) — используется
+    # одиночная пара emoji/custom_emoji_id выше.
+    emojis_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Шаблон текста, например: "{user} выебал(а) {target}"
     template: Mapped[str] = mapped_column(String(256))

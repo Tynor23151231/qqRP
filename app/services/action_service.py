@@ -93,15 +93,21 @@ class ActionService:
         self,
         owner: User,
         trigger: str,
-        emoji: str,
+        emojis: list[tuple[str, str | None]],
         template: str,
-        custom_emoji_id: str | None = None,
     ) -> CustomTrigger:
+        """
+        emojis — список (emoji, custom_emoji_id) в порядке добавления. При каждом
+        использовании действия случайно выбирается один эмодзи из набора (как и
+        у встроенных действий) — премиум-пользователи могут задать сразу несколько.
+        """
+        first_emoji, first_custom_id = emojis[0] if emojis else ("✨", None)
         trigger_obj = CustomTrigger(
             owner_id=owner.id,
             trigger=trigger,
-            emoji=emoji,
-            custom_emoji_id=custom_emoji_id,
+            emoji=first_emoji,
+            custom_emoji_id=first_custom_id,
+            emojis_json=json.dumps([{"emoji": e, "id": cid} for e, cid in emojis]),
             template=template,
         )
         self.session.add(trigger_obj)
@@ -243,10 +249,23 @@ class ActionService:
 
         custom = await self.get_custom_trigger(actor.id, action_key)
         if custom is not None:
-            emoji_sequence = [(custom.emoji, custom.custom_emoji_id)]
+            candidates = self._custom_trigger_emojis(custom)
+            emoji_sequence = [random.choice(candidates)] if candidates else []
             return self._render_template(
                 custom.template, actor, target_id, target_name, target_username,
                 verb=None, emoji_sequence=emoji_sequence,
             )
 
         return None
+
+    def _custom_trigger_emojis(self, custom: CustomTrigger) -> list[tuple[str, str | None]]:
+        """Читает набор эмодзи пользовательского триггера (JSON), с fallback на старые записи."""
+        if custom.emojis_json:
+            try:
+                items = json.loads(custom.emojis_json)
+                candidates = [(item["emoji"], item.get("id")) for item in items]
+                if candidates:
+                    return candidates
+            except (ValueError, KeyError, TypeError):
+                pass
+        return [(custom.emoji, custom.custom_emoji_id)]

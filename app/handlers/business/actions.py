@@ -154,6 +154,19 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         )
         return
 
+    action_service = ActionService(session)
+    if not action_service.is_builtin(parsed.action_key):
+        custom = await action_service.get_custom_trigger(db_user.id, parsed.action_key)
+        if custom is not None and not db_user.has_premium:
+            await _send_business_message(
+                message,
+                "🔒 Это своё РП-действие требует активного премиума "
+                f"({settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). "
+                "Оформи в личном чате с ботом командой /premium.",
+                None,
+            )
+            return
+
     target = await _resolve_target(message, parsed.target_username, session)
     if target is None:
         if parsed.target_username:
@@ -171,7 +184,6 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
 
     target_id, target_name, target_username = target
 
-    action_service = ActionService(session)
     rendered = await action_service.render(
         db_user, parsed.action_key, target_id, target_name, target_username, keyword=parsed.keyword
     )

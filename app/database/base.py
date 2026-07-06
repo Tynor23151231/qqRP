@@ -35,6 +35,9 @@ async def _run_light_migrations() -> None:
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMPTZ")
         )
+        await conn.execute(
+            text("ALTER TABLE custom_triggers ADD COLUMN IF NOT EXISTS emojis_json TEXT")
+        )
 
 
 async def init_models() -> None:

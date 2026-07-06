@@ -47,3 +47,27 @@ def parse_dot_command(text: str, prefix: str = ".") -> ParsedCommand | None:
             keyword = token.lower()
 
     return ParsedCommand(action_key=action_key, target_username=target_username, keyword=keyword)
+
+
+def parse_typing_command(text: str, prefix: str = ".") -> str | None:
+    """
+    Разбирает ".typing <текст>" (регистр действия неважен), сохраняя исходный
+    текст сообщения (пробелы, регистр, переносы строк) — в отличие от
+    parse_dot_command, который разбивает тело на отдельные токены.
+
+    Возвращает текст для "печатания" или None, если это не .typing-команда.
+    """
+    if not text or not text.startswith(prefix):
+        return None
+
+    body = text[len(prefix):]
+    lowered = body.lower()
+    if not lowered.startswith("typing"):
+        return None
+
+    rest = body[len("typing"):]
+    if not rest or not rest[0].isspace():
+        return None
+
+    payload = rest.strip()
+    return payload or None

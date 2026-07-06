@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import User
 from app.services.action_service import ActionService
+from app.services.typing_effect import reveal_text
 from app.services.user_service import UserService
-from app.utils.text_parsing import parse_dot_command
+from app.utils.text_parsing import parse_dot_command, parse_typing_command
 
 logger = logging.getLogger(__name__)
 router = Router(name="business_actions")
@@ -114,6 +115,17 @@ async def _delete_source_message(message: Message) -> None:
 @router.business_message()
 async def handle_dot_command(message: Message, db_user: User, session: AsyncSession) -> None:
     if not message.text:
+        return
+
+    typing_payload = parse_typing_command(message.text, prefix=settings.command_prefix)
+    if typing_payload is not None:
+        if not await _is_from_connection_owner(message, session):
+            return
+        await _delete_source_message(message)
+        await reveal_text(
+            message.bot, message.chat.id, typing_payload,
+            business_connection_id=message.business_connection_id,
+        )
         return
 
     parsed = parse_dot_command(message.text, prefix=settings.command_prefix)

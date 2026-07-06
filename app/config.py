@@ -23,11 +23,6 @@ class Settings(BaseSettings):
     premium_price_stars: int = 99
     premium_duration_days: int = 30
 
-    # Обязательная подписка на канал перед использованием бота.
-    # chat_id канала/супергруппы (с "-100" префиксом) и публичный username без "@".
-    required_channel_id: int = -1003062068266
-    required_channel_username: str = "Infoaboutqq"
-
     # Значения по умолчанию для пользовательских настроек
     default_language: str = "ru"
     log_level: str = "INFO"

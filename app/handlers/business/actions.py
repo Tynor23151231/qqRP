@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import User
 from app.services.action_service import ActionService
-from app.services.subscription_service import is_subscribed, subscription_required_payload
 from app.services.typing_effect import reveal_text
 from app.services.user_service import UserService
 from app.utils.entity_builder import EntityTextBuilder
@@ -94,6 +93,22 @@ async def _send_business_message(message: Message, text: str, entities) -> None:
     )
 
 
+async def _send_business_action(message: Message, rendered) -> None:
+    """Отправляет готовое RP-действие: с гифкой (send_animation + подпись), если она задана,
+    иначе обычным текстовым сообщением."""
+    if rendered.gif_file_id:
+        await message.bot.send_animation(
+            chat_id=message.chat.id,
+            animation=rendered.gif_file_id,
+            caption=rendered.text,
+            caption_entities=rendered.entities,
+            parse_mode=None,
+            business_connection_id=message.business_connection_id,
+        )
+    else:
+        await _send_business_message(message, rendered.text, rendered.entities)
+
+
 async def _delete_source_message(message: Message) -> None:
     try:
         if message.business_connection_id:
@@ -124,10 +139,6 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     if typing_payload is not None:
         if not await _is_from_connection_owner(message, session):
             return
-        if not await is_subscribed(message.bot, message.from_user.id):
-            text, entities = subscription_required_payload()
-            await _send_business_message(message, text, entities)
-            return
         if not db_user.has_premium:
             b = EntityTextBuilder()
             g, gid = emoji("lock")
@@ -157,11 +168,6 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     if not await _is_from_connection_owner(message, session):
         # Команду прислал не владелец бизнес-аккаунта (например клиент в переписке) —
         # молча игнорируем, чтобы не позволить постороннему слать сообщения от имени владельца.
-        return
-
-    if not await is_subscribed(message.bot, message.from_user.id):
-        text, entities = subscription_required_payload()
-        await _send_business_message(message, text, entities)
         return
 
     if not db_user.is_configured:
@@ -211,7 +217,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         return  # неизвестная команда — молча игнорируем, чтобы не мешать обычной переписке
 
     await _delete_source_message(message)
-    await _send_business_message(message, rendered.text, rendered.entities)
+    await _send_business_action(message, rendered)
 
     user_service = UserService(session)
     await user_service.register_action_usage(db_user, parsed.action_key, target_id)

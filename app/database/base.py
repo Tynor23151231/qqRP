@@ -33,6 +33,9 @@ async def _run_light_migrations() -> None:
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_name VARCHAR(128)")
         )
         await conn.execute(
+            text("ALTER TABLE custom_triggers ADD COLUMN IF NOT EXISTS gif_file_id VARCHAR(256)")
+        )
+        await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMPTZ")
         )
         await conn.execute(

@@ -29,6 +29,7 @@ _PAIR_KEYS = {
 class RenderedAction:
     text: str
     entities: list[MessageEntity]
+    gif_file_id: str | None = None
 
 
 class ActionService:
@@ -125,11 +126,15 @@ class ActionService:
         trigger: str,
         emojis: list[tuple[str, str | None]],
         template: str,
+        gif_file_id: str | None = None,
     ) -> CustomTrigger:
         """
         emojis — список (emoji, custom_emoji_id) в порядке добавления. При каждом
         использовании действия случайно выбирается один эмодзи из набора (как и
         у встроенных действий) — премиум-пользователи могут задать сразу несколько.
+
+        gif_file_id — необязательный file_id гифки/видео, которая будет отправляться
+        вместе с текстом действия (как подпись к send_animation).
 
         Если у owner уже есть триггер с таким именем — обновляет его на месте
         (апдейт), а не создаёт дубликат: пользователь может как создавать новые
@@ -145,6 +150,7 @@ class ActionService:
             existing.custom_emoji_id = first_custom_id
             existing.emojis_json = emojis_json
             existing.template = template
+            existing.gif_file_id = gif_file_id
             await self.session.commit()
             await self.session.refresh(existing)
             return existing
@@ -156,6 +162,7 @@ class ActionService:
             custom_emoji_id=first_custom_id,
             emojis_json=emojis_json,
             template=template,
+            gif_file_id=gif_file_id,
         )
         self.session.add(trigger_obj)
         await self.session.commit()
@@ -303,9 +310,12 @@ class ActionService:
         if custom is not None:
             candidates = self._custom_trigger_emojis(custom)
             emoji_sequence = [random.choice(candidates)] if candidates else []
-            return self._render_template(
+            rendered = self._render_template(
                 custom.template, actor, target_id, target_name, target_username,
                 verb=None, emoji_sequence=emoji_sequence,
+            )
+            return RenderedAction(
+                text=rendered.text, entities=rendered.entities, gif_file_id=custom.gif_file_id
             )
 
         builtin = (ActionService._builtin_actions or {}).get(action_key)

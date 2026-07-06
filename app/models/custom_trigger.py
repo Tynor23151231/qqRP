@@ -40,6 +40,10 @@ class CustomTrigger(Base):
     # Шаблон текста, например: "{user} выебал(а) {target}"
     template: Mapped[str] = mapped_column(String(256))
 
+    # file_id гифки/видео-кружка, которая прикрепляется к действию (send_animation
+    # с этим text как подписью). Необязательно.
+    gif_file_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     owner: Mapped["User"] = relationship(back_populates="custom_triggers")  # noqa: F821

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import User
 from app.services.action_service import ActionService
+from app.services.subscription_service import is_subscribed, subscription_required_payload
 from app.services.typing_effect import reveal_text
 from app.services.user_service import UserService
 from app.utils.entity_builder import EntityTextBuilder
@@ -65,6 +66,10 @@ async def _delete_source_message(message: Message) -> None:
 async def handle_dot_command(message: Message, db_user: User, session: AsyncSession) -> None:
     typing_payload = parse_typing_command(message.text, prefix=settings.command_prefix)
     if typing_payload is not None:
+        if not await is_subscribed(message.bot, message.from_user.id):
+            text, entities = subscription_required_payload()
+            await message.reply(text, entities=entities, parse_mode=None)
+            return
         if not db_user.has_premium:
             b = EntityTextBuilder()
             g, gid = emoji("lock")
@@ -87,6 +92,11 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     parsed = parse_dot_command(message.text, prefix=settings.command_prefix)
     if parsed is None:
         return  # обычное сообщение, не RP-команда
+
+    if not await is_subscribed(message.bot, message.from_user.id):
+        text, entities = subscription_required_payload()
+        await message.reply(text, entities=entities, parse_mode=None)
+        return
 
     if not db_user.is_configured:
         await message.reply(

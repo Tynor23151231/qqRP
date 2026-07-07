@@ -10,8 +10,10 @@ from app.keyboards.gender import gender_keyboard
 from app.keyboards.menu import back_only_keyboard, main_menu_keyboard, with_back_button
 from app.keyboards.profile import profile_keyboard
 from app.keyboards.settings import settings_keyboard
+from app.keyboards.subscription import subscription_keyboard
 from app.models import Gender, User
 from app.services.action_service import ActionService
+from app.services.subscription_service import is_subscribed, notify_channel
 from app.services.user_service import UserService
 from app.utils.entity_builder import EntityTextBuilder
 from app.utils.premium_emoji import emoji
@@ -19,17 +21,20 @@ from app.utils.premium_emoji import emoji
 router = Router(name="start")
 
 ONBOARDING_TEXT = (
-    "👋 <b>Привет! Это qqRP Bot.</b>\n\n"
-    "Я умею красиво оформлять RP-действия по коротким командам с точкой — "
-    f"например <code>{settings.command_prefix}муа</code>, <code>{settings.command_prefix}обнять</code>, "
+    '<tg-emoji emoji-id="5233599134019100925">👋</tg-emoji> <b>Привет! Это qqRP Bot.</b>\n\n'
+    "Я умею красиво оформлять RP-действия по коротким командам с точкой — например "
+    f"<code>{settings.command_prefix}муа</code>, <code>{settings.command_prefix}обнять</code>, "
     f"<code>{settings.command_prefix}цветы</code>.\n\n"
+    f"Также поддерживаю стили печатания <code>{settings.command_prefix}typing</code>, и в будущем "
+    f"будут только добавляться — следи за новостями в @{settings.required_channel_username}.\n\n"
     "<b>Как это работает:</b>\n"
-    "1️⃣ Подключаешь меня как Telegram Business Bot к своему аккаунту\n"
-    "2️⃣ Пишешь в любом чате (личном или группе) команду вида "
-    f"<code>{settings.command_prefix}муа</code> (в ответ на сообщение человека, "
-    "или с <code>@username</code> после команды)\n"
-    "3️⃣ Я удаляю твоё сообщение-команду и отправляю красивое RP-действие "
-    "с кликабельными именами вместо него\n\n"
+    '<tg-emoji emoji-id="5447584416274595624">1️⃣</tg-emoji> Подключаешь меня как Telegram Business '
+    "Bot к своему аккаунту\n"
+    '<tg-emoji emoji-id="5447569199205468152">2️⃣</tg-emoji> Пишешь в любом чате (личном или группе) '
+    f"команду вида <code>{settings.command_prefix}муа</code> (в ответ на сообщение человека, или с "
+    "<code>@username</code> после команды)\n"
+    '<tg-emoji emoji-id="5438196446694228650">3️⃣</tg-emoji> Я удаляю твоё сообщение-команду и '
+    "отправляю красивое RP-действие с кликабельными именами вместо него\n\n"
     "Для начала выбери свой пол — это нужно, чтобы правильно склонять действия "
     "(«поцеловал» / «поцеловала»):"
 )
@@ -89,8 +94,29 @@ def _menu_home_payload(name: str | None = None) -> tuple[str, list]:
     return b.build()
 
 
+def _subscription_required_payload() -> tuple[str, list]:
+    b = EntityTextBuilder()
+    glyph, cid = emoji("lock")
+    b.add_custom_emoji(glyph, cid)
+    b.add_text(" ")
+    b.add_bold("Нужна подписка на канал")
+    b.add_text(
+        f"\n\nЧтобы пользоваться ботом, подпишись на @{settings.required_channel_username} — "
+        "там анонсы обновлений и важные новости.\n\n"
+        "После подписки жми «Я подписался, проверить»."
+    )
+    return b.build()
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, db_user: User) -> None:
+    if not await is_subscribed(message.bot, message.from_user.id):
+        text, entities = _subscription_required_payload()
+        await message.answer(
+            text, entities=entities, parse_mode=None, reply_markup=subscription_keyboard()
+        )
+        return
+
     if db_user.is_configured:
         text, entities = _menu_home_payload(db_user.display_name)
         await message.answer(
@@ -102,8 +128,35 @@ async def cmd_start(message: Message, db_user: User) -> None:
     await message.answer(ONBOARDING_TEXT, reply_markup=gender_keyboard())
 
 
+@router.callback_query(F.data == "check_subscription")
+async def cb_check_subscription(callback: CallbackQuery, db_user: User) -> None:
+    if not await is_subscribed(callback.bot, callback.from_user.id):
+        await callback.answer(
+            "Пока не вижу подписку — подпишись и попробуй ещё раз 🙂", show_alert=True
+        )
+        return
+
+    await callback.answer("Подписка подтверждена ✅")
+
+    if db_user.is_configured:
+        text, entities = _menu_home_payload(db_user.display_name)
+        await callback.message.edit_text(
+            text, entities=entities, parse_mode=None, link_preview_options=_NO_PREVIEW,
+            reply_markup=main_menu_keyboard(db_user),
+        )
+    else:
+        await callback.message.edit_text(ONBOARDING_TEXT, reply_markup=gender_keyboard())
+
+
 @router.message(Command("menu"))
 async def cmd_menu(message: Message, db_user: User) -> None:
+    if not await is_subscribed(message.bot, message.from_user.id):
+        text, entities = _subscription_required_payload()
+        await message.answer(
+            text, entities=entities, parse_mode=None, reply_markup=subscription_keyboard()
+        )
+        return
+
     text, entities = _menu_home_payload()
     await message.answer(
         text, entities=entities, parse_mode=None, link_preview_options=_NO_PREVIEW,
@@ -116,8 +169,18 @@ async def on_gender_chosen(callback: CallbackQuery, db_user: User, session: Asyn
     gender_value = callback.data.split(":", 1)[1]
     gender = Gender.MALE if gender_value == "male" else Gender.FEMALE
 
+    is_first_registration = not db_user.is_configured
+
     service = UserService(session)
     await service.set_gender(db_user, gender)
+
+    if is_first_registration:
+        username_part = f"@{db_user.username}" if db_user.username else "без username"
+        await notify_channel(
+            callback.bot,
+            f"🆕 Новый пользователь: {db_user.first_name} ({username_part}, id {db_user.telegram_id}), "
+            f"пол: {'мужской' if gender == Gender.MALE else 'женский'}",
+        )
 
     b = EntityTextBuilder()
     b.add_text("Готово! Пол установлен: ")

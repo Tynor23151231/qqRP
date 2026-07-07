@@ -11,6 +11,7 @@ from app.config import settings
 from app.keyboards.menu import back_to_menu_row
 from app.models import CustomTrigger, User
 from app.services.action_service import ActionService
+from app.services.subscription_service import is_subscribed, subscription_required_payload
 from app.utils.entity_builder import EntityTextBuilder
 from app.utils.premium_emoji import emoji
 
@@ -198,6 +199,11 @@ async def _save_trigger(
 
 @router.message(Command("addrp"))
 async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None:
+    if not await is_subscribed(message.bot, message.from_user.id):
+        text, entities = subscription_required_payload()
+        await message.answer(text, entities=entities, parse_mode=None)
+        return
+
     if not db_user.has_premium:
         text, entities = _paywall_payload()
         await message.answer(text, entities=entities, parse_mode=None)
@@ -209,6 +215,11 @@ async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None
 
 @router.callback_query(F.data == "myrp:new")
 async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User) -> None:
+    if not await is_subscribed(callback.bot, callback.from_user.id):
+        text, entities = subscription_required_payload()
+        await callback.answer()
+        await callback.message.answer(text, entities=entities, parse_mode=None)
+        return
     if not db_user.has_premium:
         await callback.answer("Нужен премиум", show_alert=True)
         return

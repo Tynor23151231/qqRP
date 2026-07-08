@@ -77,7 +77,9 @@ async def _my_rp_list_payload(db_user: User, session: AsyncSession) -> tuple[str
         b.add_text("\n\n")
         for t in triggers:
             is_override = action_service.is_builtin(t.trigger)
-            b.add_text(f"{t.emoji} ")
+            for e, eid in action_service._custom_trigger_emojis(t):
+                b.add_custom_emoji(e, eid)
+            b.add_text(" ")
             b.add_code(f"{settings.command_prefix}{t.trigger}")
             if t.gif_file_id:
                 b.add_text(" 🎬")
@@ -283,7 +285,9 @@ async def shared_rp_preview(
     b.add_custom_emoji(g1, gid1)
     b.add_custom_emoji(g2, gid2)
     b.add_text(L(lang, " Тебе прислали RP-действие:\n\n", " You've been sent an RP action:\n\n"))
-    b.add_text(f"{shared.emoji} ")
+    for e, eid in action_service._custom_trigger_emojis(shared):
+        b.add_custom_emoji(e, eid)
+    b.add_text(" ")
     b.add_code(f"{settings.command_prefix}{shared.trigger}")
     if shared.gif_file_id:
         b.add_text(" 🎬")

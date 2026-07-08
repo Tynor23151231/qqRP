@@ -97,13 +97,15 @@ def _my_rp_keyboard(triggers: list[CustomTrigger], lang: str) -> InlineKeyboardM
                     text=f"✏️ .{t.trigger}", callback_data=f"myrp:edit:{t.trigger}"
                 ),
                 InlineKeyboardButton(
-                    text=L(lang, "📤 Поделиться", "📤 Share"),
+                    text=L(lang, "Поделиться", "Share"),
                     callback_data=f"myrp:share:{t.trigger}",
+                    icon_custom_emoji_id=emoji("share")[1],
                 ),
                 InlineKeyboardButton(
-                    text=L(lang, "🗑 Удалить", "🗑 Delete"),
+                    text=L(lang, "Удалить", "Delete"),
                     callback_data=f"myrp:delete:{t.trigger}",
                     style="danger",
+                    icon_custom_emoji_id=emoji("delete")[1],
                 ),
             ]
         )
@@ -276,7 +278,11 @@ async def shared_rp_preview(
         return None
 
     b = EntityTextBuilder()
-    b.add_text(L(lang, "📥 Тебе прислали RP-действие:\n\n", "📥 You've been sent an RP action:\n\n"))
+    g1, gid1 = emoji("received_1")
+    g2, gid2 = emoji("received_2")
+    b.add_custom_emoji(g1, gid1)
+    b.add_custom_emoji(g2, gid2)
+    b.add_text(L(lang, " Тебе прислали RP-действие:\n\n", " You've been sent an RP action:\n\n"))
     b.add_text(f"{shared.emoji} ")
     b.add_code(f"{settings.command_prefix}{shared.trigger}")
     if shared.gif_file_id:
@@ -285,12 +291,14 @@ async def shared_rp_preview(
 
     existing = await action_service.get_custom_trigger(db_user.id, shared.trigger)
     if existing is not None:
+        wg, wid = emoji("warning")
+        b.add_custom_emoji(wg, wid)
         b.add_text(
             L(
                 lang,
-                "⚠️ У тебя уже есть своё действие с таким же триггером — если заберёшь это, "
+                " У тебя уже есть своё действие с таким же триггером — если заберёшь это, "
                 "оно заменится.\n\n",
-                "⚠️ You already have your own action with this trigger — grabbing this one "
+                " You already have your own action with this trigger — grabbing this one "
                 "will replace it.\n\n",
             )
         )
@@ -307,12 +315,14 @@ async def shared_rp_preview(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=L(lang, "✅ Забрать себе", "✅ Grab it"),
+                    text=L(lang, "Забрать себе", "Grab it"),
                     callback_data=f"share:import:{trigger_id}",
+                    icon_custom_emoji_id=emoji("confirm")[1],
                 ),
                 InlineKeyboardButton(
-                    text=L(lang, "❌ Не нужно", "❌ No thanks"),
+                    text=L(lang, "Не нужно", "No thanks"),
                     callback_data="share:cancel",
+                    icon_custom_emoji_id=emoji("cancel")[1],
                 ),
             ]
         ]
@@ -411,11 +421,13 @@ async def cb_myrp_share(callback: CallbackQuery, db_user: User, session: AsyncSe
     link = f"https://t.me/{me.username}?start=rp_{trigger_obj.id}"
 
     b = EntityTextBuilder()
+    g, gid = emoji("share_link")
+    b.add_custom_emoji(g, gid)
     b.add_text(
         L(
             lang,
-            f"📤 Ссылка, чтобы поделиться действием ",
-            f"📤 Link to share the action ",
+            f" Ссылка, чтобы поделиться действием ",
+            f" Link to share the action ",
         )
     )
     b.add_code(f"{settings.command_prefix}{trigger_obj.trigger}")

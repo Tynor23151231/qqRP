@@ -320,11 +320,16 @@ class ActionService:
 
         builtin = (ActionService._builtin_actions or {}).get(action_key)
         if builtin is not None:
-            verb = self._verb_form(builtin["verb"], actor.gender)
+            if actor.language == "en" and builtin.get("template_en"):
+                verb = builtin["verb_en"]
+                template = builtin["template_en"]
+            else:
+                verb = self._verb_form(builtin["verb"], actor.gender)
+                template = builtin["template"]
             candidates = await self._select_builtin_emojis(builtin, actor, target_id, keyword)
             emoji_sequence = self._pick_emoji(builtin, candidates)
             return self._render_template(
-                builtin["template"], actor, target_id, target_name, target_username,
+                template, actor, target_id, target_name, target_username,
                 verb=verb, emoji_sequence=emoji_sequence,
             )
 

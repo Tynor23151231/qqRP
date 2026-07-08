@@ -41,13 +41,20 @@ async def notify_channel(bot: Bot, text: str) -> None:
         logger.warning("Не удалось отправить сообщение в канал %s: %s", settings.required_channel_id, e)
 
 
-def subscription_required_payload() -> tuple[str, list]:
+def subscription_required_payload(lang: str = "ru") -> tuple[str, list]:
     """Текст+entities для сообщения 'нужна подписка', переиспользуется во всех хендлерах команд."""
+    from app.i18n import L  # локальный импорт во избежание циклов
     from app.utils.entity_builder import EntityTextBuilder  # локальный импорт во избежание циклов
     from app.utils.premium_emoji import emoji
 
     b = EntityTextBuilder()
     glyph, cid = emoji("lock")
     b.add_custom_emoji(glyph, cid)
-    b.add_text(f" Подпишись на @{settings.required_channel_username}, чтобы пользоваться ботом.")
+    b.add_text(
+        L(
+            lang,
+            f" Подпишись на @{settings.required_channel_username}, чтобы пользоваться ботом.",
+            f" Subscribe to @{settings.required_channel_username} to use the bot.",
+        )
+    )
     return b.build()

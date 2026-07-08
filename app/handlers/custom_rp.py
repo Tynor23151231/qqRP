@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.i18n import L
 from app.keyboards.menu import back_to_menu_row
 from app.models import CustomTrigger, User
 from app.services.action_service import ActionService
@@ -18,31 +19,49 @@ from app.utils.premium_emoji import emoji
 router = Router(name="custom_rp")
 
 
-def _paywall_payload() -> tuple[str, list]:
+def _paywall_payload(lang: str) -> tuple[str, list]:
     b = EntityTextBuilder()
     g, gid = emoji("lock")
     b.add_custom_emoji(g, gid)
     b.add_text(" ")
-    b.add_bold("Создание своих РП-действий — премиум-функция")
+    b.add_bold(L(lang, "Создание своих РП-действий — премиум-функция", "Creating your own RP actions is a premium feature"))
     b.add_text(
-        f"\n\nЗа {settings.premium_price_stars} ⭐️ на {settings.premium_duration_days} дней открывается:\n"
-        "• создание собственных команд через "
+        L(
+            lang,
+            f"\n\nЗа {settings.premium_price_stars} ⭐️ на {settings.premium_duration_days} дней открывается:\n"
+            "• создание собственных команд через ",
+            f"\n\nFor {settings.premium_price_stars} ⭐️ for {settings.premium_duration_days} days you unlock:\n"
+            "• creating your own commands via ",
+        )
     )
     b.add_code("/addrp")
     b.add_text(
-        " (в том числе с несколькими премиум-эмодзи и своей гифкой в одном действии, из которых "
-        "при каждом использовании случайно выбирается один эмодзи)\n"
-        "• своё действие может переопределить даже встроенную команду (например свой "
+        L(
+            lang,
+            " (в том числе с несколькими премиум-эмодзи и своей гифкой в одном действии, из которых "
+            "при каждом использовании случайно выбирается один эмодзи)\n"
+            "• своё действие может переопределить даже встроенную команду (например свой ",
+            " (including several premium emoji and your own GIF in one action, with one emoji "
+            "randomly picked each time it's used)\n"
+            "• your own action can even override a built-in command (e.g. your own ",
+        )
     )
     b.add_code(f"{settings.command_prefix}муа")
-    b.add_text(" вместо стандартного) — удалишь своё, вернётся встроенное\n• ")
+    b.add_text(
+        L(
+            lang,
+            " вместо стандартного) — удалишь своё, вернётся встроенное\n• ",
+            " instead of the default one) — delete yours and the built-in one comes back\n• ",
+        )
+    )
     b.add_code(f"{settings.command_prefix}typing")
-    b.add_text("\n\nОформить: ")
+    b.add_text(L(lang, "\n\nОформить: ", "\n\nGet it: "))
     b.add_code("/premium")
     return b.build()
 
 
 async def _my_rp_list_payload(db_user: User, session: AsyncSession) -> tuple[str, list]:
+    lang = db_user.language
     action_service = ActionService(session)
     triggers = await action_service.list_custom_triggers(db_user.id)
 
@@ -50,10 +69,10 @@ async def _my_rp_list_payload(db_user: User, session: AsyncSession) -> tuple[str
     g, gid = emoji("addrp")
     b.add_custom_emoji(g, gid)
     b.add_text(" ")
-    b.add_bold("Свои RP-действия")
+    b.add_bold(L(lang, "Свои RP-действия", "My RP actions"))
 
     if not triggers:
-        b.add_text("\n\nПока не создано ни одного своего действия.")
+        b.add_text(L(lang, "\n\nПока не создано ни одного своего действия.", "\n\nNo custom actions created yet."))
     else:
         b.add_text("\n\n")
         for t in triggers:
@@ -63,13 +82,13 @@ async def _my_rp_list_payload(db_user: User, session: AsyncSession) -> tuple[str
             if t.gif_file_id:
                 b.add_text(" 🎬")
             if is_override:
-                b.add_text(" (переопределяет встроенное)")
+                b.add_text(L(lang, " (переопределяет встроенное)", " (overrides built-in)"))
             b.add_text("\n")
 
     return b.build()
 
 
-def _my_rp_keyboard(triggers: list[CustomTrigger]) -> InlineKeyboardMarkup:
+def _my_rp_keyboard(triggers: list[CustomTrigger], lang: str) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for t in triggers:
         rows.append(
@@ -78,18 +97,22 @@ def _my_rp_keyboard(triggers: list[CustomTrigger]) -> InlineKeyboardMarkup:
                     text=f"✏️ .{t.trigger}", callback_data=f"myrp:edit:{t.trigger}"
                 ),
                 InlineKeyboardButton(
-                    text="🗑 Удалить", callback_data=f"myrp:delete:{t.trigger}", style="danger"
+                    text=L(lang, "🗑 Удалить", "🗑 Delete"),
+                    callback_data=f"myrp:delete:{t.trigger}",
+                    style="danger",
                 ),
             ]
         )
     rows.append(
         [
             InlineKeyboardButton(
-                text="Создать новое", callback_data="myrp:new", icon_custom_emoji_id=emoji("addrp")[1]
+                text=L(lang, "Создать новое", "Create new"),
+                callback_data="myrp:new",
+                icon_custom_emoji_id=emoji("addrp")[1],
             )
         ]
     )
-    rows.append(back_to_menu_row())
+    rows.append(back_to_menu_row(lang))
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -97,14 +120,15 @@ async def my_rp_screen(
     db_user: User, session: AsyncSession
 ) -> tuple[str, list, InlineKeyboardMarkup]:
     """Единая точка входа для экрана «Своё RP» — используется и из /addrp, и из меню."""
+    lang = db_user.language
     if not db_user.has_premium:
-        text, entities = _paywall_payload()
-        return text, entities, InlineKeyboardMarkup(inline_keyboard=[back_to_menu_row()])
+        text, entities = _paywall_payload(lang)
+        return text, entities, InlineKeyboardMarkup(inline_keyboard=[back_to_menu_row(lang)])
 
     action_service = ActionService(session)
     triggers = await action_service.list_custom_triggers(db_user.id)
     text, entities = await _my_rp_list_payload(db_user, session)
-    return text, entities, _my_rp_keyboard(triggers)
+    return text, entities, _my_rp_keyboard(triggers, lang)
 
 
 class AddRPStates(StatesGroup):
@@ -114,14 +138,14 @@ class AddRPStates(StatesGroup):
     waiting_gif = State()
 
 
-def _wizard_keyboard(*, skip: bool, back: bool) -> InlineKeyboardMarkup | None:
+def _wizard_keyboard(lang: str, *, skip: bool, back: bool) -> InlineKeyboardMarkup | None:
     row: list[InlineKeyboardButton] = []
     if skip:
-        row.append(InlineKeyboardButton(text="Пропустить", callback_data="addrp:skip_gif"))
+        row.append(InlineKeyboardButton(text=L(lang, "Пропустить", "Skip"), callback_data="addrp:skip_gif"))
     if back:
         row.append(
             InlineKeyboardButton(
-                text="Назад", callback_data="addrp:back", icon_custom_emoji_id=emoji("back")[1]
+                text=L(lang, "Назад", "Back"), callback_data="addrp:back", icon_custom_emoji_id=emoji("back")[1]
             )
         )
     if not row:
@@ -129,51 +153,82 @@ def _wizard_keyboard(*, skip: bool, back: bool) -> InlineKeyboardMarkup | None:
     return InlineKeyboardMarkup(inline_keyboard=[row])
 
 
-async def _prompt_trigger(message: Message, state: FSMContext) -> None:
+async def _prompt_trigger(message: Message, state: FSMContext, lang: str) -> None:
     await state.set_state(AddRPStates.waiting_trigger)
     await message.answer(
-        "✍️ Введи триггер-слово/фразу для действия (то, что будет писаться после точки).\n\n"
-        "Если укажешь слово уже существующего своего действия или даже встроенной команды "
-        "(например <code>муа</code>) — оно будет переопределено этим новым.\n\n"
-        "Например: <code>выепать</code>",
-        reply_markup=_wizard_keyboard(skip=False, back=False),
+        L(
+            lang,
+            "✍️ Введи триггер-слово/фразу для действия (то, что будет писаться после точки).\n\n"
+            "Если укажешь слово уже существующего своего действия или даже встроенной команды "
+            "(например <code>муа</code>) — оно будет переопределено этим новым.\n\n"
+            "Например: <code>поприветствовать</code>",
+            "✍️ Send the trigger word/phrase for the action (what goes after the dot).\n\n"
+            "If you use the name of an existing custom action or even a built-in command "
+            "(e.g. <code>hug</code>) — it will be overridden by this new one.\n\n"
+            "For example: <code>greet</code>",
+        ),
+        reply_markup=_wizard_keyboard(lang, skip=False, back=False),
     )
 
 
-async def _prompt_emoji(message: Message, state: FSMContext, trigger: str, editing: bool) -> None:
+async def _prompt_emoji(message: Message, state: FSMContext, trigger: str, editing: bool, lang: str) -> None:
     await state.set_state(AddRPStates.waiting_emoji)
-    prefix = f"✏️ Редактируем <code>{settings.command_prefix}{trigger}</code>.\n\n" if editing else ""
+    prefix = (
+        L(lang, f"✏️ Редактируем <code>{settings.command_prefix}{trigger}</code>.\n\n", f"✏️ Editing <code>{settings.command_prefix}{trigger}</code>.\n\n")
+        if editing
+        else ""
+    )
     await message.answer(
-        f"{prefix}🎨 Отправь один или несколько эмодзи для этого действия одним сообщением "
-        "(поддерживаются премиум-эмодзи Telegram — можно вставить сразу несколько подряд, "
-        "при каждом использовании действия один из них будет выбираться случайно).",
-        reply_markup=_wizard_keyboard(skip=False, back=True),
+        prefix
+        + L(
+            lang,
+            "🎨 Отправь один или несколько эмодзи для этого действия одним сообщением "
+            "(поддерживаются премиум-эмодзи Telegram — можно вставить сразу несколько подряд, "
+            "при каждом использовании действия один из них будет выбираться случайно).",
+            "🎨 Send one or several emoji for this action in a single message "
+            "(Telegram premium emoji are supported — you can add several in a row, "
+            "and one of them will be randomly picked each time the action is used).",
+        ),
+        reply_markup=_wizard_keyboard(lang, skip=False, back=True),
     )
 
 
-async def _prompt_template(message: Message, state: FSMContext, trigger: str) -> None:
+async def _prompt_template(message: Message, state: FSMContext, trigger: str, lang: str) -> None:
     await state.set_state(AddRPStates.waiting_template)
     await message.answer(
-        "📝 Теперь введи текст действия. Используй <code>{user}</code> и <code>{target}</code> "
-        "как плейсхолдеры для имён.\n\n"
-        f"Например: <code>{{user}} выебал(а) {trigger}а {{target}}</code>",
-        reply_markup=_wizard_keyboard(skip=False, back=True),
+        L(
+            lang,
+            "📝 Теперь введи текст действия. Используй <code>{user}</code> и <code>{target}</code> "
+            "как плейсхолдеры для имён.\n\n"
+            f"Например: <code>{{user}} поприветствовал(а) {{target}}</code>",
+            "📝 Now send the action text. Use <code>{user}</code> and <code>{target}</code> "
+            "as placeholders for the names.\n\n"
+            f"For example: <code>{{user}} greeted {{target}}</code>",
+        ),
+        reply_markup=_wizard_keyboard(lang, skip=False, back=True),
     )
 
 
-async def _prompt_gif(message: Message, state: FSMContext) -> None:
+async def _prompt_gif(message: Message, state: FSMContext, lang: str) -> None:
     await state.set_state(AddRPStates.waiting_gif)
     await message.answer(
-        "🎬 Хочешь прикрепить гифку/видео к этому действию? Она будет отправляться вместе с "
-        "текстом (текст станет подписью под гифкой).\n\n"
-        "Пришли гифку/видео одним сообщением, или нажми «Пропустить», если гифка не нужна.",
-        reply_markup=_wizard_keyboard(skip=True, back=True),
+        L(
+            lang,
+            "🎬 Хочешь прикрепить гифку/видео к этому действию? Она будет отправляться вместе с "
+            "текстом (текст станет подписью под гифкой).\n\n"
+            "Пришли гифку/видео одним сообщением, или нажми «Пропустить», если гифка не нужна.",
+            "🎬 Want to attach a GIF/video to this action? It will be sent together with "
+            "the text (the text becomes the caption under the GIF).\n\n"
+            "Send a GIF/video in a single message, or tap \"Skip\" if you don't need one.",
+        ),
+        reply_markup=_wizard_keyboard(lang, skip=True, back=True),
     )
 
 
 async def _save_trigger(
     message: Message, state: FSMContext, db_user: User, session: AsyncSession, gif_file_id: str | None
 ) -> None:
+    lang = db_user.language
     data = await state.get_data()
     action_service = ActionService(session)
     trigger_obj = await action_service.create_custom_trigger(
@@ -186,46 +241,57 @@ async def _save_trigger(
     await state.clear()
 
     override_note = (
-        " Оно переопределяет встроенную команду — если удалишь своё, вернётся стандартное поведение."
+        L(
+            lang,
+            " Оно переопределяет встроенную команду — если удалишь своё, вернётся стандартное поведение.",
+            " It overrides a built-in command — if you delete yours, the default behaviour returns.",
+        )
         if action_service.is_builtin(trigger_obj.trigger)
         else ""
     )
-    gif_note = " С гифкой." if gif_file_id else ""
+    gif_note = L(lang, " С гифкой.", " With a GIF.") if gif_file_id else ""
     await message.answer(
-        f"✅ Готово! Действие <code>{settings.command_prefix}{trigger_obj.trigger}</code> "
-        f"сохранено и уже доступно в чатах.{gif_note}{override_note}"
+        L(
+            lang,
+            f"✅ Готово! Действие <code>{settings.command_prefix}{trigger_obj.trigger}</code> "
+            f"сохранено и уже доступно в чатах.{gif_note}{override_note}",
+            f"✅ Done! Action <code>{settings.command_prefix}{trigger_obj.trigger}</code> "
+            f"is saved and already available in chats.{gif_note}{override_note}",
+        )
     )
 
 
 @router.message(Command("addrp"))
 async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None:
+    lang = db_user.language
     if not await is_subscribed(message.bot, message.from_user.id):
-        text, entities = subscription_required_payload()
+        text, entities = subscription_required_payload(lang)
         await message.answer(text, entities=entities, parse_mode=None)
         return
 
     if not db_user.has_premium:
-        text, entities = _paywall_payload()
+        text, entities = _paywall_payload(lang)
         await message.answer(text, entities=entities, parse_mode=None)
         return
 
     await state.update_data(editing=False)
-    await _prompt_trigger(message, state)
+    await _prompt_trigger(message, state, lang)
 
 
 @router.callback_query(F.data == "myrp:new")
 async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User) -> None:
+    lang = db_user.language
     if not await is_subscribed(callback.bot, callback.from_user.id):
-        text, entities = subscription_required_payload()
+        text, entities = subscription_required_payload(lang)
         await callback.answer()
         await callback.message.answer(text, entities=entities, parse_mode=None)
         return
     if not db_user.has_premium:
-        await callback.answer("Нужен премиум", show_alert=True)
+        await callback.answer(L(lang, "Нужен премиум", "Premium required"), show_alert=True)
         return
     await callback.answer()
     await state.update_data(editing=False)
-    await _prompt_trigger(callback.message, state)
+    await _prompt_trigger(callback.message, state, lang)
 
 
 @router.callback_query(F.data.startswith("myrp:edit:"))
@@ -233,20 +299,25 @@ async def cb_myrp_edit(callback: CallbackQuery, state: FSMContext, db_user: User
     trigger = callback.data.split(":", 2)[2]
     await state.update_data(trigger=trigger, editing=True)
     await callback.answer()
-    await _prompt_emoji(callback.message, state, trigger, editing=True)
+    await _prompt_emoji(callback.message, state, trigger, editing=True, lang=db_user.language)
 
 
 @router.callback_query(F.data.startswith("myrp:delete:"))
 async def cb_myrp_delete(callback: CallbackQuery, db_user: User, session: AsyncSession) -> None:
+    lang = db_user.language
     trigger = callback.data.split(":", 2)[2]
     action_service = ActionService(session)
     deleted = await action_service.delete_custom_trigger(db_user.id, trigger)
 
     if deleted:
-        note = " Встроенное действие с этим именем снова активно." if action_service.is_builtin(trigger) else ""
-        await callback.answer(f"Удалено.{note}", show_alert=True)
+        note = (
+            L(lang, " Встроенное действие с этим именем снова активно.", " The built-in action with this name is active again.")
+            if action_service.is_builtin(trigger)
+            else ""
+        )
+        await callback.answer(L(lang, f"Удалено.{note}", f"Deleted.{note}"), show_alert=True)
     else:
-        await callback.answer("Уже удалено", show_alert=True)
+        await callback.answer(L(lang, "Уже удалено", "Already deleted"), show_alert=True)
 
     text, entities, keyboard = await my_rp_screen(db_user, session)
     await callback.message.edit_text(text, entities=entities, parse_mode=None, reply_markup=keyboard)
@@ -256,6 +327,7 @@ async def cb_myrp_delete(callback: CallbackQuery, db_user: User, session: AsyncS
 async def cb_addrp_back(
     callback: CallbackQuery, state: FSMContext, db_user: User, session: AsyncSession
 ) -> None:
+    lang = db_user.language
     await callback.answer()
     current = await state.get_state()
     data = await state.get_data()
@@ -263,16 +335,16 @@ async def cb_addrp_back(
     editing = data.get("editing", False)
 
     if current == AddRPStates.waiting_gif.state:
-        await _prompt_template(callback.message, state, trigger)
+        await _prompt_template(callback.message, state, trigger, lang)
     elif current == AddRPStates.waiting_template.state:
-        await _prompt_emoji(callback.message, state, trigger, editing)
+        await _prompt_emoji(callback.message, state, trigger, editing, lang)
     elif current == AddRPStates.waiting_emoji.state:
         if editing:
             await state.clear()
             text, entities, keyboard = await my_rp_screen(db_user, session)
             await callback.message.answer(text, entities=entities, parse_mode=None, reply_markup=keyboard)
         else:
-            await _prompt_trigger(callback.message, state)
+            await _prompt_trigger(callback.message, state, lang)
     elif current == AddRPStates.waiting_trigger.state:
         await state.clear()
         text, entities, keyboard = await my_rp_screen(db_user, session)
@@ -288,18 +360,22 @@ async def cb_addrp_skip_gif(
 
 
 @router.message(AddRPStates.waiting_trigger, F.text)
-async def on_trigger_entered(message: Message, state: FSMContext) -> None:
+async def on_trigger_entered(message: Message, state: FSMContext, db_user: User) -> None:
+    lang = db_user.language
     trigger = message.text.strip().lower().lstrip(".")
     if not trigger or " " in trigger:
-        await message.answer("Триггер должен быть одним словом без пробелов. Попробуй ещё раз:")
+        await message.answer(
+            L(lang, "Триггер должен быть одним словом без пробелов. Попробуй ещё раз:", "The trigger must be a single word with no spaces. Try again:")
+        )
         return
 
     await state.update_data(trigger=trigger)
-    await _prompt_emoji(message, state, trigger, editing=False)
+    await _prompt_emoji(message, state, trigger, editing=False, lang=lang)
 
 
 @router.message(AddRPStates.waiting_emoji)
-async def on_emoji_entered(message: Message, state: FSMContext) -> None:
+async def on_emoji_entered(message: Message, state: FSMContext, db_user: User) -> None:
+    lang = db_user.language
     emojis: list[tuple[str, str | None]] = []
 
     if message.entities:
@@ -315,44 +391,54 @@ async def on_emoji_entered(message: Message, state: FSMContext) -> None:
             emojis = [(fallback, None)]
 
     if not emojis:
-        await message.answer("Не нашёл ни одного эмодзи в сообщении. Пришли ещё раз:")
+        await message.answer(L(lang, "Не нашёл ни одного эмодзи в сообщении. Пришли ещё раз:", "Couldn't find any emoji in the message. Send it again:"))
         return
 
     await state.update_data(emojis=emojis)
 
     data = await state.get_data()
     trigger = data["trigger"]
-    count_note = f" (сохранил {len(emojis)} шт., один будет выбираться случайно)" if len(emojis) > 1 else ""
-    await message.answer(f"Принято{count_note}.")
-    await _prompt_template(message, state, trigger)
+    count_note = (
+        L(lang, f" (сохранил {len(emojis)} шт., один будет выбираться случайно)", f" (saved {len(emojis)}, one will be picked at random)")
+        if len(emojis) > 1
+        else ""
+    )
+    await message.answer(L(lang, f"Принято{count_note}.", f"Got it{count_note}."))
+    await _prompt_template(message, state, trigger, lang)
 
 
 @router.message(AddRPStates.waiting_template, F.text)
 async def on_template_entered(
     message: Message, state: FSMContext, db_user: User, session: AsyncSession
 ) -> None:
+    lang = db_user.language
     if not db_user.has_premium:
         # Премиум мог закончиться прямо во время диалога — перепроверяем перед сохранением.
         await state.clear()
-        text, entities = _paywall_payload()
+        text, entities = _paywall_payload(lang)
         await message.answer(text, entities=entities, parse_mode=None)
         return
 
     template = message.text.strip()
     if "{user}" not in template or "{target}" not in template:
         await message.answer(
-            "В шаблоне обязательно должны быть <code>{user}</code> и <code>{target}</code>. Попробуй ещё раз:"
+            L(
+                lang,
+                "В шаблоне обязательно должны быть <code>{user}</code> и <code>{target}</code>. Попробуй ещё раз:",
+                "The template must contain <code>{user}</code> and <code>{target}</code>. Try again:",
+            )
         )
         return
 
     await state.update_data(template=template)
-    await _prompt_gif(message, state)
+    await _prompt_gif(message, state, lang)
 
 
 @router.message(AddRPStates.waiting_gif)
 async def on_gif_entered(
     message: Message, state: FSMContext, db_user: User, session: AsyncSession
 ) -> None:
+    lang = db_user.language
     file_id: str | None = None
     if message.animation:
         file_id = message.animation.file_id
@@ -365,9 +451,12 @@ async def on_gif_entered(
 
     if not file_id:
         await message.answer(
-            "Это не похоже на гифку/видео. Пришли гифку/видео одним сообщением, "
-            "или нажми «Пропустить»:",
-            reply_markup=_wizard_keyboard(skip=True, back=True),
+            L(
+                lang,
+                "Это не похоже на гифку/видео. Пришли гифку/видео одним сообщением, или нажми «Пропустить»:",
+                "That doesn't look like a GIF/video. Send a GIF/video in one message, or tap \"Skip\":",
+            ),
+            reply_markup=_wizard_keyboard(lang, skip=True, back=True),
         )
         return
 

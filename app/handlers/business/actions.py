@@ -8,6 +8,7 @@ from aiogram.types import LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.i18n import L
 from app.models import User
 from app.services.action_service import ActionService
 from app.services.subscription_service import is_subscribed, subscription_required_payload
@@ -50,7 +51,7 @@ async def _display_info_for(
 
 
 async def _resolve_target(
-    message: Message, username: str | None, session: AsyncSession
+    message: Message, username: str | None, session: AsyncSession, lang: str
 ) -> tuple[int, str, str | None] | None:
     """
     Определяет цель действия по правилам ТЗ:
@@ -59,9 +60,10 @@ async def _resolve_target(
     3) иначе, в личном чате -> собеседник;
     4) иначе -> None (вызывающий код попросит выбрать пользователя).
     """
+    fallback_default = L(lang, "Пользователь", "User")
     if message.reply_to_message is not None and message.reply_to_message.from_user is not None:
         target_user = message.reply_to_message.from_user
-        fallback_name = target_user.first_name or target_user.username or "Пользователь"
+        fallback_name = target_user.first_name or target_user.username or fallback_default
         name, uname = await _display_info_for(session, target_user.id, fallback_name, target_user.username)
         return target_user.id, name, uname
 
@@ -76,7 +78,7 @@ async def _resolve_target(
 
     if message.chat.type == "private" and message.chat.id != message.from_user.id:
         chat = message.chat
-        fallback_name = chat.first_name or chat.username or chat.title or "Пользователь"
+        fallback_name = chat.first_name or chat.username or chat.title or fallback_default
         name, uname = await _display_info_for(session, chat.id, fallback_name, chat.username)
         return chat.id, name, uname
 
@@ -141,7 +143,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         if not await _is_from_connection_owner(message, session):
             return
         if not await is_subscribed(message.bot, message.from_user.id):
-            text, entities = subscription_required_payload()
+            text, entities = subscription_required_payload(db_user.language)
             await _send_business_message(message, text, entities)
             return
         if not db_user.has_premium:
@@ -151,8 +153,13 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             b.add_text(" ")
             b.add_code(f"{settings.command_prefix}typing")
             b.add_text(
-                f" — платная функция ({settings.premium_price_stars} ⭐️ / "
-                f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой "
+                L(
+                    db_user.language,
+                    f" — платная функция ({settings.premium_price_stars} ⭐️ / "
+                    f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой ",
+                    f" is a paid feature ({settings.premium_price_stars} ⭐️ / "
+                    f"{settings.premium_duration_days} days). Get it in a private chat with the bot via ",
+                )
             )
             b.add_code("/premium")
             b.add_text(".")
@@ -176,14 +183,18 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         return
 
     if not await is_subscribed(message.bot, message.from_user.id):
-        text, entities = subscription_required_payload()
+        text, entities = subscription_required_payload(db_user.language)
         await _send_business_message(message, text, entities)
         return
 
     if not db_user.is_configured:
         await _send_business_message(
             message,
-            "⚠️ Сначала выбери пол в личном чате с ботом командой /start, чтобы я мог правильно склонять действия.",
+            L(
+                db_user.language,
+                "⚠️ Сначала выбери пол в личном чате с ботом командой /start, чтобы я мог правильно склонять действия.",
+                "⚠️ First choose your gender in a private chat with the bot via /start, so I can conjugate actions correctly.",
+            ),
             None,
         )
         return
@@ -194,26 +205,43 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         b = EntityTextBuilder()
         g, gid = emoji("lock")
         b.add_custom_emoji(g, gid)
-        b.add_text(" Это своё РП-действие требует активного премиума (")
-        b.add_text(f"{settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). ")
-        b.add_text("Оформи в личном чате с ботом командой ")
+        b.add_text(
+            L(
+                db_user.language,
+                f" Это своё РП-действие требует активного премиума ({settings.premium_price_stars} ⭐️ / "
+                f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой ",
+                f" This custom RP action requires active premium ({settings.premium_price_stars} ⭐️ / "
+                f"{settings.premium_duration_days} days). Get it in a private chat with the bot via ",
+            )
+        )
         b.add_code("/premium")
         b.add_text(".")
         text, entities = b.build()
         await _send_business_message(message, text, entities)
         return
 
-    target = await _resolve_target(message, parsed.target_username, session)
+    target = await _resolve_target(message, parsed.target_username, session, db_user.language)
     if target is None:
         if parsed.target_username:
             await _send_business_message(
-                message, f"❌ Не удалось найти пользователя @{parsed.target_username}.", None
+                message,
+                L(
+                    db_user.language,
+                    f"❌ Не удалось найти пользователя @{parsed.target_username}.",
+                    f"❌ Couldn't find user @{parsed.target_username}.",
+                ),
+                None,
             )
         else:
             await _send_business_message(
                 message,
-                "🤔 Не понял, к кому применить действие. "
-                "Ответь этой командой на сообщение нужного человека или укажи @username.",
+                L(
+                    db_user.language,
+                    "🤔 Не понял, к кому применить действие. "
+                    "Ответь этой командой на сообщение нужного человека или укажи @username.",
+                    "🤔 I couldn't tell who to apply this action to. "
+                    "Reply with this command to the right person's message, or specify @username.",
+                ),
                 None,
             )
         return

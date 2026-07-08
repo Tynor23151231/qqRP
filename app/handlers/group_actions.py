@@ -8,6 +8,7 @@ from aiogram.types import LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.i18n import L
 from app.models import User
 from app.services.action_service import ActionService
 from app.services.subscription_service import is_subscribed, subscription_required_payload
@@ -22,7 +23,7 @@ router = Router(name="group_actions")
 
 
 async def _resolve_target(
-    message: Message, username: str | None, session: AsyncSession
+    message: Message, username: str | None, session: AsyncSession, lang: str
 ) -> tuple[int, str, str | None] | None:
     """
     Определяет цель действия в обычном (не business) чате:
@@ -31,10 +32,11 @@ async def _resolve_target(
     3) иначе -> None.
     """
     user_service = UserService(session)
+    fallback_default = L(lang, "Пользователь", "User")
 
     if message.reply_to_message is not None and message.reply_to_message.from_user is not None:
         target_user = message.reply_to_message.from_user
-        fallback_name = target_user.first_name or target_user.username or "Пользователь"
+        fallback_name = target_user.first_name or target_user.username or fallback_default
         known = await user_service.get_by_telegram_id(target_user.id)
         name = (known.custom_name if known else None) or fallback_name
         uname = (known.username if known else None) or target_user.username
@@ -64,10 +66,11 @@ async def _delete_source_message(message: Message) -> None:
 
 @router.message(F.chat.type.in_({"group", "supergroup"}), F.text)
 async def handle_dot_command(message: Message, db_user: User, session: AsyncSession) -> None:
+    lang = db_user.language
     typing_payload = parse_typing_command(message.text, prefix=settings.command_prefix)
     if typing_payload is not None:
         if not await is_subscribed(message.bot, message.from_user.id):
-            text, entities = subscription_required_payload()
+            text, entities = subscription_required_payload(lang)
             await message.reply(text, entities=entities, parse_mode=None)
             return
         if not db_user.has_premium:
@@ -77,8 +80,13 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             b.add_text(" ")
             b.add_code(f"{settings.command_prefix}typing")
             b.add_text(
-                f" — платная функция ({settings.premium_price_stars} ⭐️ / "
-                f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой "
+                L(
+                    lang,
+                    f" — платная функция ({settings.premium_price_stars} ⭐️ / "
+                    f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой ",
+                    f" is a paid feature ({settings.premium_price_stars} ⭐️ / "
+                    f"{settings.premium_duration_days} days). Get it in a private chat with the bot via ",
+                )
             )
             b.add_code("/premium")
             b.add_text(".")
@@ -94,13 +102,17 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         return  # обычное сообщение, не RP-команда
 
     if not await is_subscribed(message.bot, message.from_user.id):
-        text, entities = subscription_required_payload()
+        text, entities = subscription_required_payload(lang)
         await message.reply(text, entities=entities, parse_mode=None)
         return
 
     if not db_user.is_configured:
         await message.reply(
-            "⚠️ Сначала выбери пол в личном чате с ботом командой /start, чтобы я мог правильно склонять действия."
+            L(
+                lang,
+                "⚠️ Сначала выбери пол в личном чате с ботом командой /start, чтобы я мог правильно склонять действия.",
+                "⚠️ First choose your gender in a private chat with the bot via /start, so I can conjugate actions correctly.",
+            )
         )
         return
 
@@ -110,23 +122,40 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         b = EntityTextBuilder()
         g, gid = emoji("lock")
         b.add_custom_emoji(g, gid)
-        b.add_text(" Это своё РП-действие требует активного премиума (")
-        b.add_text(f"{settings.premium_price_stars} ⭐️ / {settings.premium_duration_days} дней). ")
-        b.add_text("Оформи в личном чате с ботом командой ")
+        b.add_text(
+            L(
+                lang,
+                f" Это своё РП-действие требует активного премиума ({settings.premium_price_stars} ⭐️ / "
+                f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой ",
+                f" This custom RP action requires active premium ({settings.premium_price_stars} ⭐️ / "
+                f"{settings.premium_duration_days} days). Get it in a private chat with the bot via ",
+            )
+        )
         b.add_code("/premium")
         b.add_text(".")
         text, entities = b.build()
         await message.reply(text, entities=entities, parse_mode=None)
         return
 
-    target = await _resolve_target(message, parsed.target_username, session)
+    target = await _resolve_target(message, parsed.target_username, session, lang)
     if target is None:
         if parsed.target_username:
-            await message.reply(f"❌ Не удалось найти пользователя @{parsed.target_username}.")
+            await message.reply(
+                L(
+                    lang,
+                    f"❌ Не удалось найти пользователя @{parsed.target_username}.",
+                    f"❌ Couldn't find user @{parsed.target_username}.",
+                )
+            )
         else:
             await message.reply(
-                "🤔 Не понял, к кому применить действие. "
-                "Ответь этой командой на сообщение нужного человека или укажи @username."
+                L(
+                    lang,
+                    "🤔 Не понял, к кому применить действие. "
+                    "Ответь этой командой на сообщение нужного человека или укажи @username.",
+                    "🤔 I couldn't tell who to apply this action to. "
+                    "Reply with this command to the right person's message, or specify @username.",
+                )
             )
         return
 

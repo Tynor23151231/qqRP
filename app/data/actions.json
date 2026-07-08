@@ -1,261 +1,640 @@
 {
   "муа": {
-    "aliases": ["поцеловать"],
-    "verb": {"male": "поцеловал", "female": "поцеловала"},
+    "aliases": [
+      "поцеловать"
+    ],
+    "verb": {
+      "male": "поцеловал",
+      "female": "поцеловала"
+    },
     "template": "{user} {verb} {target}",
     "emoji_mode": "pair",
     "pairs": {
       "male_female": [
-        {"emoji": "🐱", "id": "5381925593363265750"},
-        {"emoji": "😘", "id": "5411238036488865601"},
-        {"emoji": "😘", "id": "5341757779310814613"},
-        {"emoji": "💋", "id": "5237880194211004809"},
-        {"emoji": "😘", "id": "5303123221338410495"}
+        {
+          "emoji": "🐱",
+          "id": "5381925593363265750"
+        },
+        {
+          "emoji": "😘",
+          "id": "5411238036488865601"
+        },
+        {
+          "emoji": "😘",
+          "id": "5341757779310814613"
+        },
+        {
+          "emoji": "💋",
+          "id": "5237880194211004809"
+        },
+        {
+          "emoji": "😘",
+          "id": "5303123221338410495"
+        }
       ],
       "female_male": [
-        {"emoji": "😚", "id": "6249303623293995760"},
-        {"emoji": "❤", "id": "5228912229482518313"},
-        {"emoji": "😘", "id": "5208591240261542051"},
-        {"emoji": "💋", "id": "5274107882575510502"},
-        {"emoji": "😘", "id": "5343705628583930686"}
+        {
+          "emoji": "😚",
+          "id": "6249303623293995760"
+        },
+        {
+          "emoji": "❤",
+          "id": "5228912229482518313"
+        },
+        {
+          "emoji": "😘",
+          "id": "5208591240261542051"
+        },
+        {
+          "emoji": "💋",
+          "id": "5274107882575510502"
+        },
+        {
+          "emoji": "😘",
+          "id": "5343705628583930686"
+        }
       ],
       "female_female": [
-        {"emoji": "💋", "id": "5237999899244513840"},
-        {"emoji": "💋", "id": "5235504549015343075"},
-        {"emoji": "💋", "id": "5235559000610719820"}
+        {
+          "emoji": "💋",
+          "id": "5237999899244513840"
+        },
+        {
+          "emoji": "💋",
+          "id": "5235504549015343075"
+        },
+        {
+          "emoji": "💋",
+          "id": "5235559000610719820"
+        }
       ],
       "male_male": [
-        {"emoji": "😘", "id": "5210671030930007987"},
-        {"emoji": "☁️", "id": "5190877047081167291"},
-        {"emoji": "👨‍❤️‍💋‍👨", "id": "5318909124526742955"}
+        {
+          "emoji": "😘",
+          "id": "5210671030930007987"
+        },
+        {
+          "emoji": "☁️",
+          "id": "5190877047081167291"
+        },
+        {
+          "emoji": "👨‍❤️‍💋‍👨",
+          "id": "5318909124526742955"
+        }
       ]
-    }
+    },
+    "verb_en": "kissed",
+    "template_en": "{user} {verb} {target}"
   },
   "обнять": {
-    "verb": {"male": "обнял", "female": "обняла"},
+    "verb": {
+      "male": "обнял",
+      "female": "обняла"
+    },
     "template": "{user} крепко {verb} {target}",
     "emoji_mode": "pair",
     "pairs": {
       "male_female": [
-        {"emoji": "💞", "id": "6186081060451783731"},
-        {"emoji": "❤️", "id": "5341287647895627359"},
-        {"emoji": "🌟", "id": "5192751499658155268"}
+        {
+          "emoji": "💞",
+          "id": "6186081060451783731"
+        },
+        {
+          "emoji": "❤️",
+          "id": "5341287647895627359"
+        },
+        {
+          "emoji": "🌟",
+          "id": "5192751499658155268"
+        }
       ],
       "female_male": [
-        {"emoji": "🤗", "id": "5341581827385599962"},
-        {"emoji": "🌟", "id": "5195323180046106370"},
-        {"emoji": "🫂", "id": "5303431015874712225"},
-        {"emoji": "❤️", "id": "5298939193047660505"},
-        {"emoji": "🤍", "id": "5411342799331151666"}
+        {
+          "emoji": "🤗",
+          "id": "5341581827385599962"
+        },
+        {
+          "emoji": "🌟",
+          "id": "5195323180046106370"
+        },
+        {
+          "emoji": "🫂",
+          "id": "5303431015874712225"
+        },
+        {
+          "emoji": "❤️",
+          "id": "5298939193047660505"
+        },
+        {
+          "emoji": "🤍",
+          "id": "5411342799331151666"
+        }
       ],
       "female_female": [
-        {"emoji": "🤗", "id": "5258417246056754328"}
+        {
+          "emoji": "🤗",
+          "id": "5258417246056754328"
+        }
       ],
       "male_male": [
-        {"emoji": "🤗", "id": "5258417246056754328"},
-        {"emoji": "🤤", "id": "5938424686294603050"}
+        {
+          "emoji": "🤗",
+          "id": "5258417246056754328"
+        },
+        {
+          "emoji": "🤤",
+          "id": "5938424686294603050"
+        }
       ]
-    }
+    },
+    "verb_en": "hugged",
+    "template_en": "{user} {verb} {target} tightly"
   },
   "прижать": {
-    "verb": {"male": "прижал", "female": "прижала"},
+    "verb": {
+      "male": "прижал",
+      "female": "прижала"
+    },
     "template": "{user} {verb} {target} к себе",
     "emoji_mode": "pair",
     "pairs": {
       "male_female": [
-        {"emoji": "😘", "id": "5341757779310814613"},
-        {"emoji": "😻", "id": "5411607450920964467"},
-        {"emoji": "🤩", "id": "5312241604411553005"}
+        {
+          "emoji": "😘",
+          "id": "5341757779310814613"
+        },
+        {
+          "emoji": "😻",
+          "id": "5411607450920964467"
+        },
+        {
+          "emoji": "🤩",
+          "id": "5312241604411553005"
+        }
       ],
       "female_male": [
-        {"emoji": "🌟", "id": "5192987563945644006"}
+        {
+          "emoji": "🌟",
+          "id": "5192987563945644006"
+        }
       ],
       "female_female": [
-        {"emoji": "🌟", "id": "5192987563945644006"}
+        {
+          "emoji": "🌟",
+          "id": "5192987563945644006"
+        }
       ],
       "male_male": [
-        {"emoji": "🌟", "id": "5397991773232455055"},
-        {"emoji": "🌟", "id": "5325818666049088252"}
+        {
+          "emoji": "🌟",
+          "id": "5397991773232455055"
+        },
+        {
+          "emoji": "🌟",
+          "id": "5325818666049088252"
+        }
       ]
-    }
+    },
+    "verb_en": "pulled",
+    "template_en": "{user} {verb} {target} close"
   },
   "цветы": {
-    "verb": {"male": "подарил", "female": "подарила"},
+    "verb": {
+      "male": "подарил",
+      "female": "подарила"
+    },
     "template": "{user} {verb} {target} букет цветов",
     "emoji_mode": "fixed",
     "emojis": [
-      {"emoji": "🌹", "id": "5458855574395449652"},
-      {"emoji": "🌟", "id": "5458459578410758514"},
-      {"emoji": "🌷", "id": "5273804885517685017"},
-      {"emoji": "🌹", "id": "5341364514925321015"},
-      {"emoji": "🌹", "id": "5350305468604498536"}
-    ]
+      {
+        "emoji": "🌹",
+        "id": "5458855574395449652"
+      },
+      {
+        "emoji": "🌟",
+        "id": "5458459578410758514"
+      },
+      {
+        "emoji": "🌷",
+        "id": "5273804885517685017"
+      },
+      {
+        "emoji": "🌹",
+        "id": "5341364514925321015"
+      },
+      {
+        "emoji": "🌹",
+        "id": "5350305468604498536"
+      }
+    ],
+    "verb_en": "gave",
+    "template_en": "{user} {verb} {target} a bouquet of flowers"
   },
   "кольцо": {
-    "verb": {"male": "подарил", "female": "подарила"},
+    "verb": {
+      "male": "подарил",
+      "female": "подарила"
+    },
     "template": "{user} {verb} {target} кольцо",
     "emoji_mode": "fixed",
     "emojis": [
-      {"emoji": "💍", "id": "5458839914944672851"}
-    ]
+      {
+        "emoji": "💍",
+        "id": "5458839914944672851"
+      }
+    ],
+    "verb_en": "gave",
+    "template_en": "{user} {verb} {target} a ring"
   },
   "подарок": {
-    "verb": {"male": "вручил", "female": "вручила"},
+    "verb": {
+      "male": "вручил",
+      "female": "вручила"
+    },
     "template": "{user} {verb} {target} подарок",
     "emoji_mode": "fixed",
     "emojis": [
-      {"emoji": "🎁", "id": "5280615440928758599"}
-    ]
+      {
+        "emoji": "🎁",
+        "id": "5280615440928758599"
+      }
+    ],
+    "verb_en": "handed",
+    "template_en": "{user} {verb} {target} a gift"
   },
   "сердце": {
-    "verb": {"male": "отдал", "female": "отдала"},
+    "verb": {
+      "male": "отдал",
+      "female": "отдала"
+    },
     "template": "{user} {verb} {target} своё сердце",
     "emoji_mode": "actor_gender",
     "by_gender": {
       "female": [
-        {"emoji": "❤️", "id": "5215197350934359972"},
-        {"emoji": "❤️", "id": "5242417659655501182"},
-        {"emoji": "❤️", "id": "5242264647150614169"},
-        {"emoji": "❤️", "id": "5195166267710923257"}
+        {
+          "emoji": "❤️",
+          "id": "5215197350934359972"
+        },
+        {
+          "emoji": "❤️",
+          "id": "5242417659655501182"
+        },
+        {
+          "emoji": "❤️",
+          "id": "5242264647150614169"
+        },
+        {
+          "emoji": "❤️",
+          "id": "5195166267710923257"
+        }
       ],
       "male": [
-        {"emoji": "❤️", "id": "5341674117642854617"},
-        {"emoji": "😘", "id": "5368469082867769478"},
-        {"emoji": "❤️", "id": "5195166267710923257"}
+        {
+          "emoji": "❤️",
+          "id": "5341674117642854617"
+        },
+        {
+          "emoji": "😘",
+          "id": "5368469082867769478"
+        },
+        {
+          "emoji": "❤️",
+          "id": "5195166267710923257"
+        }
       ]
-    }
+    },
+    "verb_en": "gave",
+    "template_en": "{user} {verb} {target} their heart"
   },
   "погладить": {
-    "verb": {"male": "погладил", "female": "погладила"},
+    "verb": {
+      "male": "погладил",
+      "female": "погладила"
+    },
     "template": "{user} нежно {verb} {target} по голове",
     "emoji_mode": "actor_gender",
     "by_gender": {
       "male": [
-        {"emoji": "🤗", "id": "5260536644913604662"},
-        {"emoji": "😛", "id": "5411602898255634533"},
-        {"emoji": "😆", "id": "5411612995723743506"}
+        {
+          "emoji": "🤗",
+          "id": "5260536644913604662"
+        },
+        {
+          "emoji": "😛",
+          "id": "5411602898255634533"
+        },
+        {
+          "emoji": "😆",
+          "id": "5411612995723743506"
+        }
       ],
       "female": [
-        {"emoji": "❤️", "id": "5411431584895095727"}
+        {
+          "emoji": "❤️",
+          "id": "5411431584895095727"
+        }
       ]
-    }
+    },
+    "verb_en": "petted",
+    "template_en": "{user} gently {verb} {target} on the head"
   },
   "печенье": {
-    "verb": {"male": "угостил", "female": "угостила"},
+    "verb": {
+      "male": "угостил",
+      "female": "угостила"
+    },
     "template": "{user} {verb} {target} печеньку",
     "emoji_mode": "fixed",
     "sequence_mode": true,
     "emojis": [
-      {"emoji": "😋", "id": "5294261750324042913"},
-      {"emoji": "😋", "id": "5293990986995768044"}
-    ]
+      {
+        "emoji": "😋",
+        "id": "5294261750324042913"
+      },
+      {
+        "emoji": "😋",
+        "id": "5293990986995768044"
+      }
+    ],
+    "verb_en": "treated",
+    "template_en": "{user} {verb} {target} to a cookie"
   },
   "кофе": {
-    "verb": {"male": "принёс", "female": "принесла"},
+    "verb": {
+      "male": "принёс",
+      "female": "принесла"
+    },
     "template": "{user} {verb} {target} чашечку кофе",
     "emoji_mode": "actor_gender",
     "by_gender": {
-      "male": [{"emoji": "☕️", "id": "5413883478645169306"}],
-      "female": [{"emoji": "☕️", "id": "5413366476251866707"}]
-    }
+      "male": [
+        {
+          "emoji": "☕️",
+          "id": "5413883478645169306"
+        }
+      ],
+      "female": [
+        {
+          "emoji": "☕️",
+          "id": "5413366476251866707"
+        }
+      ]
+    },
+    "verb_en": "brought",
+    "template_en": "{user} {verb} {target} a cup of coffee"
   },
   "торт": {
-    "verb": {"male": "отрезал", "female": "отрезала"},
+    "verb": {
+      "male": "отрезал",
+      "female": "отрезала"
+    },
     "template": "{user} {verb} {target} кусочек торта",
     "emoji_mode": "actor_gender",
     "by_gender": {
       "male": [
-        {"emoji": "🍰", "id": "5264721283089714395"},
-        {"emoji": "🎂", "id": "5411088185079908935"}
+        {
+          "emoji": "🍰",
+          "id": "5264721283089714395"
+        },
+        {
+          "emoji": "🎂",
+          "id": "5411088185079908935"
+        }
       ],
       "female": [
-        {"emoji": "🎂", "id": "5427201480740321598"}
+        {
+          "emoji": "🎂",
+          "id": "5427201480740321598"
+        }
       ]
-    }
+    },
+    "verb_en": "cut",
+    "template_en": "{user} {verb} {target} a slice of cake"
   },
   "дай5": {
-    "verb": {"male": "дали", "female": "дали"},
+    "verb": {
+      "male": "дали",
+      "female": "дали"
+    },
     "template": "{user} и {target} {verb} друг другу пять",
     "emoji_mode": "actor_gender",
     "by_gender": {
-      "male": [{"emoji": "🤝", "id": "5357122032674818130"}],
-      "female": [{"emoji": "👐", "id": "5197654239186265322"}]
-    }
+      "male": [
+        {
+          "emoji": "🤝",
+          "id": "5357122032674818130"
+        }
+      ],
+      "female": [
+        {
+          "emoji": "👐",
+          "id": "5197654239186265322"
+        }
+      ]
+    },
+    "verb_en": "gave",
+    "template_en": "{user} and {target} {verb} each other a high five"
   },
   "шлеп": {
-    "verb": {"male": "шлёпнул", "female": "шлёпнула"},
+    "verb": {
+      "male": "шлёпнул",
+      "female": "шлёпнула"
+    },
     "template": "{user} {verb} {target}",
     "emoji_mode": "actor_gender",
     "by_gender": {
-      "male": [{"emoji": "🍑", "id": "5872985559550400480"}],
-      "female": [{"emoji": "✋", "id": null}]
-    }
+      "male": [
+        {
+          "emoji": "🍑",
+          "id": "5872985559550400480"
+        }
+      ],
+      "female": [
+        {
+          "emoji": "✋",
+          "id": null
+        }
+      ]
+    },
+    "verb_en": "slapped",
+    "template_en": "{user} {verb} {target}"
   },
   "пнуть": {
-    "verb": {"male": "пнул", "female": "пнула"},
+    "verb": {
+      "male": "пнул",
+      "female": "пнула"
+    },
     "template": "{user} {verb} {target}",
     "emoji_mode": "fixed",
-    "emojis": [{"emoji": "🦵", "id": "6203765004177508321"}]
+    "emojis": [
+      {
+        "emoji": "🦵",
+        "id": "6203765004177508321"
+      }
+    ],
+    "verb_en": "kicked",
+    "template_en": "{user} {verb} {target}"
   },
   "удар": {
-    "verb": {"male": "ударил", "female": "ударила"},
+    "verb": {
+      "male": "ударил",
+      "female": "ударила"
+    },
     "template": "{user} {verb} {target}",
     "emoji_mode": "fixed",
-    "emojis": [{"emoji": "🏃‍♂️", "id": "5341786001540917379"}]
+    "emojis": [
+      {
+        "emoji": "🏃‍♂️",
+        "id": "5341786001540917379"
+      }
+    ],
+    "verb_en": "hit",
+    "template_en": "{user} {verb} {target}"
   },
   "тык": {
-    "verb": {"male": "ткнул", "female": "ткнула"},
+    "verb": {
+      "male": "ткнул",
+      "female": "ткнула"
+    },
     "template": "{user} {verb} {target} пальцем",
     "emoji_mode": "fixed",
     "emojis": [
-      {"emoji": "👆", "id": "5192998305658846224"},
-      {"emoji": "😡", "id": "5287366846050228112"}
-    ]
+      {
+        "emoji": "👆",
+        "id": "5192998305658846224"
+      },
+      {
+        "emoji": "😡",
+        "id": "5287366846050228112"
+      }
+    ],
+    "verb_en": "poked",
+    "template_en": "{user} {verb} {target} with a finger"
   },
   "буп": {
-    "verb": {"male": "бупнул", "female": "бупнула"},
+    "verb": {
+      "male": "бупнул",
+      "female": "бупнула"
+    },
     "template": "{user} {verb} {target} по носу",
     "emoji_mode": "fixed",
-    "emojis": [{"emoji": "😃", "id": "5201659592542535309"}]
+    "emojis": [
+      {
+        "emoji": "😃",
+        "id": "5201659592542535309"
+      }
+    ],
+    "verb_en": "booped",
+    "template_en": "{user} {verb} {target} on the nose"
   },
   "укус": {
-    "verb": {"male": "укусил", "female": "укусила"},
-    "template": "{user} {verb} {target}",
-    "emoji_mode": "fixed",
-    "emojis": [{"emoji": "👹", "id": "5411360911208238991"}]
-  },
-  "кусь": {
-    "verb": {"male": "куснул", "female": "куснула"},
-    "template": "{user} {verb} {target}",
-    "emoji_mode": "actor_gender",
-    "by_gender": {
-      "male": [{"emoji": "😛", "id": "5411099223145858645"}],
-      "female": [{"emoji": "❤️", "id": "5341385006214292055"}]
-    }
-  },
-  "снежок": {
-    "verb": {"male": "кинул", "female": "кинула"},
-    "template": "{user} {verb} снежком в {target}",
-    "emoji_mode": "fixed",
-    "emojis": [{"emoji": "❤️", "id": "5204123529380906530"}]
-  },
-  "бан": {
-    "verb": {"male": "забанил", "female": "забанила"},
-    "template": "{user} {verb} {target} в шутку",
-    "emoji_mode": "fixed",
-    "emojis": [{"emoji": "❌", "id": "5321012601939838274"}]
-  },
-  "лизь": {
-    "verb": {"male": "лизнул", "female": "лизнула"},
+    "verb": {
+      "male": "укусил",
+      "female": "укусила"
+    },
     "template": "{user} {verb} {target}",
     "emoji_mode": "fixed",
     "emojis": [
-      {"emoji": "😛", "id": "5341442215178676842"},
-      {"emoji": "😍", "id": "5411526735600570266"}
+      {
+        "emoji": "👹",
+        "id": "5411360911208238991"
+      }
+    ],
+    "verb_en": "bit",
+    "template_en": "{user} {verb} {target}"
+  },
+  "кусь": {
+    "verb": {
+      "male": "куснул",
+      "female": "куснула"
+    },
+    "template": "{user} {verb} {target}",
+    "emoji_mode": "actor_gender",
+    "by_gender": {
+      "male": [
+        {
+          "emoji": "😛",
+          "id": "5411099223145858645"
+        }
+      ],
+      "female": [
+        {
+          "emoji": "❤️",
+          "id": "5341385006214292055"
+        }
+      ]
+    },
+    "verb_en": "nibbled",
+    "template_en": "{user} {verb} {target}"
+  },
+  "снежок": {
+    "verb": {
+      "male": "кинул",
+      "female": "кинула"
+    },
+    "template": "{user} {verb} снежком в {target}",
+    "emoji_mode": "fixed",
+    "emojis": [
+      {
+        "emoji": "❤️",
+        "id": "5204123529380906530"
+      }
+    ],
+    "verb_en": "threw",
+    "template_en": "{user} {verb} a snowball at {target}"
+  },
+  "бан": {
+    "verb": {
+      "male": "забанил",
+      "female": "забанила"
+    },
+    "template": "{user} {verb} {target} в шутку",
+    "emoji_mode": "fixed",
+    "emojis": [
+      {
+        "emoji": "❌",
+        "id": "5321012601939838274"
+      }
+    ],
+    "verb_en": "banned",
+    "template_en": "{user} jokingly {verb} {target}"
+  },
+  "лизь": {
+    "verb": {
+      "male": "лизнул",
+      "female": "лизнула"
+    },
+    "template": "{user} {verb} {target}",
+    "emoji_mode": "fixed",
+    "emojis": [
+      {
+        "emoji": "😛",
+        "id": "5341442215178676842"
+      },
+      {
+        "emoji": "😍",
+        "id": "5411526735600570266"
+      }
     ],
     "keyword_variants": {
-      "попу": {"emojis": [{"emoji": "🍑", "id": "5438177037737010749"}]},
-      "попа": {"emojis": [{"emoji": "🍑", "id": "5438177037737010749"}]}
-    }
+      "попу": {
+        "emojis": [
+          {
+            "emoji": "🍑",
+            "id": "5438177037737010749"
+          }
+        ]
+      },
+      "попа": {
+        "emojis": [
+          {
+            "emoji": "🍑",
+            "id": "5438177037737010749"
+          }
+        ]
+      }
+    },
+    "verb_en": "licked",
+    "template_en": "{user} {verb} {target}"
   }
 }

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aiogram import F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,7 +143,7 @@ def _menu_home_payload(lang: str, name: str | None = None) -> tuple[str, list]:
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, db_user: User) -> None:
+async def cmd_start(message: Message, db_user: User, session: AsyncSession, command: CommandObject) -> None:
     lang = db_user.language
     if not await is_subscribed(message.bot, message.from_user.id):
         text, entities = subscription_required_payload(lang)
@@ -151,6 +151,11 @@ async def cmd_start(message: Message, db_user: User) -> None:
             text, entities=entities, parse_mode=None, reply_markup=subscription_keyboard(lang)
         )
         return
+
+    if not db_user.is_configured and command.args and command.args.isdigit():
+        referrer_id = int(command.args)
+        service = UserService(session)
+        await service.set_referrer(db_user, referrer_id)
 
     if db_user.is_configured:
         text, entities = _menu_home_payload(lang, db_user.display_name)
@@ -220,6 +225,45 @@ async def on_gender_chosen(callback: CallbackQuery, db_user: User, session: Asyn
             f"🆕 Новый пользователь: {db_user.first_name} ({username_part}, id {db_user.telegram_id}), "
             f"пол: {'мужской' if gender == Gender.MALE else 'женский'}",
         )
+
+        if db_user.invited_by_id is not None:
+            referrer = await service.get_by_telegram_id(db_user.invited_by_id)
+            if referrer is not None:
+                reward_granted = await service.register_referral_completion(referrer)
+                if reward_granted:
+                    ref_lang = referrer.language
+                    ref_b = EntityTextBuilder()
+                    g, gid = emoji("premium")
+                    ref_b.add_custom_emoji(g, gid)
+                    ref_b.add_text(" ")
+                    ref_b.add_bold(
+                        L(
+                            ref_lang,
+                            f"Ты пригласил(а) {UserService.REFERRAL_THRESHOLD} человек!",
+                            f"You've invited {UserService.REFERRAL_THRESHOLD} people!",
+                        )
+                    )
+                    ref_b.add_text(
+                        L(
+                            ref_lang,
+                            f"\n\nВ награду начислено {UserService.REFERRAL_REWARD_DAYS} дней премиума, "
+                            "плюс скидка 50% на следующую покупку премиума (одноразово). "
+                            "Посмотреть — команда /premium.",
+                            f"\n\nAs a reward you got {UserService.REFERRAL_REWARD_DAYS} days of premium, "
+                            "plus a one-time 50% discount on your next premium purchase. "
+                            "Check it out via /premium.",
+                        )
+                    )
+                    ref_text, ref_entities = ref_b.build()
+                    try:
+                        await callback.bot.send_message(
+                            chat_id=referrer.telegram_id,
+                            text=ref_text,
+                            entities=ref_entities,
+                            parse_mode=None,
+                        )
+                    except Exception:
+                        pass  # пользователь мог заблокировать бота — не критично
 
     b = EntityTextBuilder()
     b.add_text(L(lang, "Готово! Пол установлен: ", "Done! Gender set to: "))
@@ -332,6 +376,6 @@ async def cb_menu_premium(callback: CallbackQuery, db_user: User) -> None:
     lang = db_user.language
     text, entities = _status_text(db_user)
     await callback.message.edit_text(
-        text, entities=entities, parse_mode=None, reply_markup=with_back_button(_buy_keyboard(lang), lang)
+        text, entities=entities, parse_mode=None, reply_markup=with_back_button(_buy_keyboard(db_user), lang)
     )
     await callback.answer()

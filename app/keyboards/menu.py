@@ -43,6 +43,10 @@ def main_menu_keyboard(user: User) -> InlineKeyboardMarkup:
                     icon_custom_emoji_id=emoji("premium")[1],
                     style="success" if user.has_premium else None,
                 ),
+                InlineKeyboardButton(
+                    text=L(lang, "Рефералы", "Referrals"),
+                    callback_data="menu:referral",
+                ),
             ],
             [
                 InlineKeyboardButton(

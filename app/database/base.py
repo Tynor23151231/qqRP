@@ -41,6 +41,18 @@ async def _run_light_migrations() -> None:
         await conn.execute(
             text("ALTER TABLE custom_triggers ADD COLUMN IF NOT EXISTS emojis_json TEXT")
         )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by_id BIGINT")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_reward_claimed BOOLEAN DEFAULT FALSE")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS discount_pending BOOLEAN DEFAULT FALSE")
+        )
 
 
 async def init_models() -> None:

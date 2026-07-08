@@ -23,10 +23,26 @@ from app.utils.premium_emoji import emoji
 router = Router(name="premium")
 
 _PAYLOAD = "qqrp_premium_month"
+_PAYLOAD_DISCOUNT = "qqrp_premium_month_discount50"
 
 
-def _buy_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
-    label = L(lang, f"Купить премиум за {settings.premium_price_stars} ⭐️", f"Buy premium for {settings.premium_price_stars} ⭐️")
+def _price_for(user: User) -> int:
+    if user.discount_pending:
+        return max(1, settings.premium_price_stars // 2)
+    return settings.premium_price_stars
+
+
+def _buy_keyboard(user: User) -> InlineKeyboardMarkup:
+    lang = user.language
+    price = _price_for(user)
+    if user.discount_pending:
+        label = L(
+            lang,
+            f"Купить со скидкой 50% за {price} ⭐️",
+            f"Buy with 50% off for {price} ⭐️",
+        )
+    else:
+        label = L(lang, f"Купить премиум за {price} ⭐️", f"Buy premium for {price} ⭐️")
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -61,6 +77,14 @@ def _status_text(user: User) -> tuple[str, list]:
                 "the days will simply be added to the current period.",
             )
         )
+        if user.discount_pending:
+            b.add_text(
+                L(
+                    lang,
+                    f"\n\n🎁 У тебя есть скидка 50% на следующую покупку (сработает автоматически).",
+                    f"\n\n🎁 You have a 50% discount on your next purchase (applied automatically).",
+                )
+            )
         return b.build()
 
     g, gid = emoji("lock")
@@ -92,6 +116,14 @@ def _status_text(user: User) -> tuple[str, list]:
             "\n\nPayment happens right inside Telegram, no bank cards or fees.",
         )
     )
+    if user.discount_pending:
+        b.add_text(
+            L(
+                lang,
+                "\n\n🎁 У тебя есть скидка 50% на покупку — сработает автоматически.",
+                "\n\n🎁 You have a 50% discount on your purchase — it applies automatically.",
+            )
+        )
     return b.build()
 
 
@@ -100,13 +132,15 @@ async def cmd_premium(message: Message, db_user: User) -> None:
     lang = db_user.language
     text, entities = _status_text(db_user)
     await message.answer(
-        text, entities=entities, parse_mode=None, reply_markup=with_back_button(_buy_keyboard(lang), lang)
+        text, entities=entities, parse_mode=None, reply_markup=with_back_button(_buy_keyboard(db_user), lang)
     )
 
 
 @router.callback_query(F.data == "premium:buy")
 async def cb_buy_premium(callback: CallbackQuery, db_user: User) -> None:
     lang = db_user.language
+    price = _price_for(db_user)
+    payload = _PAYLOAD_DISCOUNT if db_user.discount_pending else _PAYLOAD
     await callback.answer()
     await callback.message.answer_invoice(
         title=L(lang, "qqRP Premium — 1 месяц", "qqRP Premium — 1 month"),
@@ -117,12 +151,12 @@ async def cb_buy_premium(callback: CallbackQuery, db_user: User) -> None:
             f"Unlocks the bot's paid features (e.g. .typing) for "
             f"{settings.premium_duration_days} days.",
         ),
-        payload=_PAYLOAD,
+        payload=payload,
         currency="XTR",
         prices=[
             LabeledPrice(
                 label=L(lang, "Премиум на месяц", "Premium for a month"),
-                amount=settings.premium_price_stars,
+                amount=price,
             )
         ],
     )
@@ -131,7 +165,7 @@ async def cb_buy_premium(callback: CallbackQuery, db_user: User) -> None:
 @router.pre_checkout_query()
 async def on_pre_checkout(pre_checkout_query: PreCheckoutQuery) -> None:
     # Проверяем, что это наш payload, а не что-то постороннее — и подтверждаем оплату.
-    ok = pre_checkout_query.invoice_payload == _PAYLOAD
+    ok = pre_checkout_query.invoice_payload in (_PAYLOAD, _PAYLOAD_DISCOUNT)
     await pre_checkout_query.answer(ok=ok, error_message="Unknown product. Try again via /premium.")
 
 
@@ -140,6 +174,8 @@ async def on_successful_payment(message: Message, db_user: User, session: AsyncS
     lang = db_user.language
     user_service = UserService(session)
     until = await user_service.grant_premium(db_user, settings.premium_duration_days)
+    if message.successful_payment.invoice_payload == _PAYLOAD_DISCOUNT:
+        await user_service.consume_discount(db_user)
     await message.answer(
         L(
             lang,

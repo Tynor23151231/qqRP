@@ -38,6 +38,13 @@ class User(Base):
     # Премиум-подписка (платные функции вроде .typing)
     premium_until: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Реферальная программа: 10 приглашённых (кто дошёл до выбора пола) -> 7 дней премиума
+    # + одноразовая скидка 50% на одну покупку. Награда выдаётся один раз (акция одноразовая).
+    invited_by_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    referral_count: Mapped[int] = mapped_column(default=0)
+    referral_reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
+    discount_pending: Mapped[bool] = mapped_column(Boolean, default=False)
+
     action_logs: Mapped[list["ActionLog"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )

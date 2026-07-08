@@ -67,6 +67,46 @@ class UserService:
         user.gender = gender
         await self.session.commit()
 
+    async def set_referrer(self, user: User, referrer_telegram_id: int) -> bool:
+        """
+        Привязывает нового пользователя к пригласившему (по deep-link /start<id>).
+        Срабатывает только один раз для нового пользователя и не даёт указать себя же.
+        """
+        if user.invited_by_id is not None:
+            return False
+        if referrer_telegram_id == user.telegram_id:
+            return False
+
+        user.invited_by_id = referrer_telegram_id
+        await self.session.commit()
+        return True
+
+    REFERRAL_THRESHOLD = 10
+    REFERRAL_REWARD_DAYS = 7
+
+    async def register_referral_completion(self, referrer: User) -> bool:
+        """
+        Вызывается, когда приглашённый им человек первый раз выбрал пол (т.е. реально
+        начал пользоваться ботом, а не просто нажал /start). Увеличивает счётчик
+        рефералов; если достигнут порог и награда ещё не выдавалась — выдаёт её
+        (одноразовая акция) и возвращает True.
+        """
+        referrer.referral_count += 1
+
+        reward_granted = False
+        if referrer.referral_count >= self.REFERRAL_THRESHOLD and not referrer.referral_reward_claimed:
+            await self.grant_premium(referrer, self.REFERRAL_REWARD_DAYS)
+            referrer.referral_reward_claimed = True
+            referrer.discount_pending = True
+            reward_granted = True
+
+        await self.session.commit()
+        return reward_granted
+
+    async def consume_discount(self, user: User) -> None:
+        user.discount_pending = False
+        await self.session.commit()
+
     async def set_custom_name(self, user: User, custom_name: str | None) -> None:
         user.custom_name = custom_name
         await self.session.commit()

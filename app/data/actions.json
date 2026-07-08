@@ -1,7 +1,9 @@
 {
   "муа": {
     "aliases": [
-      "поцеловать"
+      "поцеловать",
+      "kiss",
+      "muah"
     ],
     "verb": {
       "male": "поцеловал",
@@ -148,7 +150,10 @@
       ]
     },
     "verb_en": "hugged",
-    "template_en": "{user} {verb} {target} tightly"
+    "template_en": "{user} {verb} {target} tightly",
+    "aliases": [
+      "hug"
+    ]
   },
   "прижать": {
     "verb": {
@@ -196,7 +201,10 @@
       ]
     },
     "verb_en": "pulled",
-    "template_en": "{user} {verb} {target} close"
+    "template_en": "{user} {verb} {target} close",
+    "aliases": [
+      "cuddle"
+    ]
   },
   "цветы": {
     "verb": {
@@ -228,7 +236,10 @@
       }
     ],
     "verb_en": "gave",
-    "template_en": "{user} {verb} {target} a bouquet of flowers"
+    "template_en": "{user} {verb} {target} a bouquet of flowers",
+    "aliases": [
+      "flowers"
+    ]
   },
   "кольцо": {
     "verb": {
@@ -244,7 +255,10 @@
       }
     ],
     "verb_en": "gave",
-    "template_en": "{user} {verb} {target} a ring"
+    "template_en": "{user} {verb} {target} a ring",
+    "aliases": [
+      "ring"
+    ]
   },
   "подарок": {
     "verb": {
@@ -260,7 +274,10 @@
       }
     ],
     "verb_en": "handed",
-    "template_en": "{user} {verb} {target} a gift"
+    "template_en": "{user} {verb} {target} a gift",
+    "aliases": [
+      "gift"
+    ]
   },
   "сердце": {
     "verb": {
@@ -304,7 +321,10 @@
       ]
     },
     "verb_en": "gave",
-    "template_en": "{user} {verb} {target} their heart"
+    "template_en": "{user} {verb} {target} their heart",
+    "aliases": [
+      "heart"
+    ]
   },
   "погладить": {
     "verb": {
@@ -336,7 +356,10 @@
       ]
     },
     "verb_en": "petted",
-    "template_en": "{user} gently {verb} {target} on the head"
+    "template_en": "{user} gently {verb} {target} on the head",
+    "aliases": [
+      "pat"
+    ]
   },
   "печенье": {
     "verb": {
@@ -357,7 +380,10 @@
       }
     ],
     "verb_en": "treated",
-    "template_en": "{user} {verb} {target} to a cookie"
+    "template_en": "{user} {verb} {target} to a cookie",
+    "aliases": [
+      "cookie"
+    ]
   },
   "кофе": {
     "verb": {
@@ -381,7 +407,10 @@
       ]
     },
     "verb_en": "brought",
-    "template_en": "{user} {verb} {target} a cup of coffee"
+    "template_en": "{user} {verb} {target} a cup of coffee",
+    "aliases": [
+      "coffee"
+    ]
   },
   "торт": {
     "verb": {
@@ -409,7 +438,10 @@
       ]
     },
     "verb_en": "cut",
-    "template_en": "{user} {verb} {target} a slice of cake"
+    "template_en": "{user} {verb} {target} a slice of cake",
+    "aliases": [
+      "cake"
+    ]
   },
   "дай5": {
     "verb": {
@@ -433,7 +465,11 @@
       ]
     },
     "verb_en": "gave",
-    "template_en": "{user} and {target} {verb} each other a high five"
+    "template_en": "{user} and {target} {verb} each other a high five",
+    "aliases": [
+      "highfive",
+      "hi5"
+    ]
   },
   "шлеп": {
     "verb": {
@@ -457,7 +493,10 @@
       ]
     },
     "verb_en": "slapped",
-    "template_en": "{user} {verb} {target}"
+    "template_en": "{user} {verb} {target}",
+    "aliases": [
+      "slap"
+    ]
   },
   "пнуть": {
     "verb": {
@@ -473,7 +512,10 @@
       }
     ],
     "verb_en": "kicked",
-    "template_en": "{user} {verb} {target}"
+    "template_en": "{user} {verb} {target}",
+    "aliases": [
+      "kick"
+    ]
   },
   "удар": {
     "verb": {
@@ -489,7 +531,11 @@
       }
     ],
     "verb_en": "hit",
-    "template_en": "{user} {verb} {target}"
+    "template_en": "{user} {verb} {target}",
+    "aliases": [
+      "hit",
+      "punch"
+    ]
   },
   "тык": {
     "verb": {
@@ -509,7 +555,10 @@
       }
     ],
     "verb_en": "poked",
-    "template_en": "{user} {verb} {target} with a finger"
+    "template_en": "{user} {verb} {target} with a finger",
+    "aliases": [
+      "poke"
+    ]
   },
   "буп": {
     "verb": {
@@ -525,7 +574,10 @@
       }
     ],
     "verb_en": "booped",
-    "template_en": "{user} {verb} {target} on the nose"
+    "template_en": "{user} {verb} {target} on the nose",
+    "aliases": [
+      "boop"
+    ]
   },
   "укус": {
     "verb": {
@@ -541,7 +593,10 @@
       }
     ],
     "verb_en": "bit",
-    "template_en": "{user} {verb} {target}"
+    "template_en": "{user} {verb} {target}",
+    "aliases": [
+      "bite"
+    ]
   },
   "кусь": {
     "verb": {
@@ -565,7 +620,10 @@
       ]
     },
     "verb_en": "nibbled",
-    "template_en": "{user} {verb} {target}"
+    "template_en": "{user} {verb} {target}",
+    "aliases": [
+      "nibble"
+    ]
   },
   "снежок": {
     "verb": {
@@ -581,7 +639,10 @@
       }
     ],
     "verb_en": "threw",
-    "template_en": "{user} {verb} a snowball at {target}"
+    "template_en": "{user} {verb} a snowball at {target}",
+    "aliases": [
+      "snowball"
+    ]
   },
   "бан": {
     "verb": {
@@ -597,7 +658,10 @@
       }
     ],
     "verb_en": "banned",
-    "template_en": "{user} jokingly {verb} {target}"
+    "template_en": "{user} jokingly {verb} {target}",
+    "aliases": [
+      "ban"
+    ]
   },
   "лизь": {
     "verb": {
@@ -635,6 +699,9 @@
       }
     },
     "verb_en": "licked",
-    "template_en": "{user} {verb} {target}"
+    "template_en": "{user} {verb} {target}",
+    "aliases": [
+      "lick"
+    ]
   }
 }

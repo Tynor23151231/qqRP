@@ -114,6 +114,9 @@ class ActionService:
         )
         return result.scalar_one_or_none()
 
+    async def get_custom_trigger_by_id(self, trigger_id: int) -> CustomTrigger | None:
+        return await self.session.get(CustomTrigger, trigger_id)
+
     async def list_custom_triggers(self, owner_id: int) -> list[CustomTrigger]:
         result = await self.session.execute(
             select(CustomTrigger).where(CustomTrigger.owner_id == owner_id)

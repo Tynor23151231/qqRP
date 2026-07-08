@@ -97,6 +97,10 @@ def _my_rp_keyboard(triggers: list[CustomTrigger], lang: str) -> InlineKeyboardM
                     text=f"✏️ .{t.trigger}", callback_data=f"myrp:edit:{t.trigger}"
                 ),
                 InlineKeyboardButton(
+                    text=L(lang, "📤 Поделиться", "📤 Share"),
+                    callback_data=f"myrp:share:{t.trigger}",
+                ),
+                InlineKeyboardButton(
                     text=L(lang, "🗑 Удалить", "🗑 Delete"),
                     callback_data=f"myrp:delete:{t.trigger}",
                     style="danger",
@@ -261,6 +265,97 @@ async def _save_trigger(
     )
 
 
+async def shared_rp_preview(
+    trigger_id: int, db_user: User, session: AsyncSession
+) -> tuple[str, list, InlineKeyboardMarkup] | None:
+    """Готовит превью полученного по ссылке действия + кнопки Забрать/Отмена."""
+    lang = db_user.language
+    action_service = ActionService(session)
+    shared = await action_service.get_custom_trigger_by_id(trigger_id)
+    if shared is None:
+        return None
+
+    b = EntityTextBuilder()
+    b.add_text(L(lang, "📥 Тебе прислали RP-действие:\n\n", "📥 You've been sent an RP action:\n\n"))
+    b.add_text(f"{shared.emoji} ")
+    b.add_code(f"{settings.command_prefix}{shared.trigger}")
+    if shared.gif_file_id:
+        b.add_text(" 🎬")
+    b.add_text(f"\n{shared.template}\n\n")
+
+    existing = await action_service.get_custom_trigger(db_user.id, shared.trigger)
+    if existing is not None:
+        b.add_text(
+            L(
+                lang,
+                "⚠️ У тебя уже есть своё действие с таким же триггером — если заберёшь это, "
+                "оно заменится.\n\n",
+                "⚠️ You already have your own action with this trigger — grabbing this one "
+                "will replace it.\n\n",
+            )
+        )
+    b.add_text(
+        L(
+            lang,
+            "Чтобы им пользоваться, нужен активный премиум.",
+            "You'll need active premium to use it.",
+        )
+    )
+    text, entities = b.build()
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=L(lang, "✅ Забрать себе", "✅ Grab it"),
+                    callback_data=f"share:import:{trigger_id}",
+                ),
+                InlineKeyboardButton(
+                    text=L(lang, "❌ Не нужно", "❌ No thanks"),
+                    callback_data="share:cancel",
+                ),
+            ]
+        ]
+    )
+    return text, entities, keyboard
+
+
+@router.callback_query(F.data.startswith("share:import:"))
+async def cb_share_import(callback: CallbackQuery, db_user: User, session: AsyncSession) -> None:
+    lang = db_user.language
+    trigger_id = int(callback.data.split(":", 2)[2])
+    action_service = ActionService(session)
+    shared = await action_service.get_custom_trigger_by_id(trigger_id)
+    if shared is None:
+        await callback.answer(L(lang, "Действие больше не существует", "This action no longer exists"), show_alert=True)
+        return
+
+    emojis = action_service._custom_trigger_emojis(shared)
+    await action_service.create_custom_trigger(
+        owner=db_user,
+        trigger=shared.trigger,
+        emojis=emojis,
+        template=shared.template,
+        gif_file_id=shared.gif_file_id,
+    )
+    await callback.answer(L(lang, "Забрано!", "Grabbed!"))
+    await callback.message.edit_text(
+        L(
+            lang,
+            f"✅ Действие {settings.command_prefix}{shared.trigger} теперь и твоё. "
+            "Посмотреть все свои действия можно в «Своё RP».",
+            f"✅ The {settings.command_prefix}{shared.trigger} action is now yours too. "
+            "Check all your actions in \"My RP\".",
+        )
+    )
+
+
+@router.callback_query(F.data == "share:cancel")
+async def cb_share_cancel(callback: CallbackQuery, db_user: User) -> None:
+    await callback.answer()
+    await callback.message.edit_text(L(db_user.language, "Окей, не забираем.", "Okay, not grabbing it."))
+
+
 @router.message(Command("addrp"))
 async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None:
     lang = db_user.language
@@ -300,6 +395,44 @@ async def cb_myrp_edit(callback: CallbackQuery, state: FSMContext, db_user: User
     await state.update_data(trigger=trigger, editing=True)
     await callback.answer()
     await _prompt_emoji(callback.message, state, trigger, editing=True, lang=db_user.language)
+
+
+@router.callback_query(F.data.startswith("myrp:share:"))
+async def cb_myrp_share(callback: CallbackQuery, db_user: User, session: AsyncSession) -> None:
+    lang = db_user.language
+    trigger_name = callback.data.split(":", 2)[2]
+    action_service = ActionService(session)
+    trigger_obj = await action_service.get_custom_trigger(db_user.id, trigger_name)
+    if trigger_obj is None:
+        await callback.answer(L(lang, "Не найдено", "Not found"), show_alert=True)
+        return
+
+    me = await callback.bot.get_me()
+    link = f"https://t.me/{me.username}?start=rp_{trigger_obj.id}"
+
+    b = EntityTextBuilder()
+    b.add_text(
+        L(
+            lang,
+            f"📤 Ссылка, чтобы поделиться действием ",
+            f"📤 Link to share the action ",
+        )
+    )
+    b.add_code(f"{settings.command_prefix}{trigger_obj.trigger}")
+    b.add_text(
+        L(
+            lang,
+            ":\n\nОтправь её другу — он сможет забрать это действие себе одним нажатием "
+            "(чтобы им пользоваться, ему тоже понадобится премиум).\n\n",
+            ":\n\nSend it to a friend — they can grab this action for themselves with one tap "
+            "(they'll need premium too to use it).\n\n",
+        )
+    )
+    b.add_code(link)
+    text, entities = b.build()
+
+    await callback.answer()
+    await callback.message.answer(text, entities=entities, parse_mode=None)
 
 
 @router.callback_query(F.data.startswith("myrp:delete:"))

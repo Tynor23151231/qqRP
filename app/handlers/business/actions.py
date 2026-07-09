@@ -4,6 +4,7 @@ import logging
 
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.methods import SetMessageReaction
 from aiogram.types import LinkPreviewOptions, Message, ReactionTypeCustomEmoji, ReactionTypeEmoji
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -158,11 +159,13 @@ async def _maybe_autoreact(message: Message, session: AsyncSession) -> None:
         else ReactionTypeEmoji(emoji=owner.autoreact_emoji)
     )
     try:
-        await message.bot.set_message_reaction(
-            chat_id=message.chat.id,
-            message_id=message.message_id,
-            reaction=[reaction],
-            business_connection_id=message.business_connection_id,
+        await message.bot(
+            SetMessageReaction(
+                chat_id=message.chat.id,
+                message_id=message.message_id,
+                reaction=[reaction],
+                business_connection_id=message.business_connection_id,
+            )
         )
     except TelegramBadRequest as e:
         logger.warning("Не удалось поставить авто-реакцию: %s", e)

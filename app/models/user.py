@@ -45,12 +45,6 @@ class User(Base):
     referral_reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
     discount_pending: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Авто-реакции (премиум): на все сообщения от заданного собеседника в бизнес-чате
-    # автоматически ставится указанная реакция (в т.ч. премиум custom_emoji).
-    autoreact_target_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    autoreact_emoji: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    autoreact_custom_emoji_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-
     action_logs: Mapped[list["ActionLog"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )

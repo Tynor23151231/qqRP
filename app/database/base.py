@@ -53,15 +53,6 @@ async def _run_light_migrations() -> None:
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS discount_pending BOOLEAN DEFAULT FALSE")
         )
-        await conn.execute(
-            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS autoreact_target_id BIGINT")
-        )
-        await conn.execute(
-            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS autoreact_emoji VARCHAR(16)")
-        )
-        await conn.execute(
-            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS autoreact_custom_emoji_id VARCHAR(64)")
-        )
 
 
 async def init_models() -> None:

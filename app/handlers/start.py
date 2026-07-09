@@ -112,12 +112,16 @@ def _format_commands_list(action_service: ActionService, lang: str) -> tuple[str
             "\n\nWrite in chat in reply to someone's message, or with @username:\n\n",
         )
     )
-    for key, aliases, action_emoji in sorted(action_service.builtin_display_list(), key=lambda x: x[0]):
-        names = f"{settings.command_prefix}{key}"
-        if aliases:
-            names += " / " + " / ".join(f"{settings.command_prefix}{a}" for a in aliases)
-        b.add_text(f"{action_emoji} ")
-        b.add_code(names)
+    for key, aliases, action_emoji, action_emoji_id in sorted(
+        action_service.builtin_display_list(), key=lambda x: x[0]
+    ):
+        b.add_custom_emoji(action_emoji, action_emoji_id)
+        b.add_text(" ")
+        all_names = [key, *aliases]
+        for i, name in enumerate(all_names):
+            b.add_code(f"{settings.command_prefix}{name}")
+            if i < len(all_names) - 1:
+                b.add_text(" / ")
         b.add_text("\n")
     b.add_text(
         L(

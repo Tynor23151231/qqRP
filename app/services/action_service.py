@@ -71,33 +71,38 @@ class ActionService:
     def builtin_keys(self) -> list[str]:
         return list((ActionService._builtin_actions or {}).keys())
 
-    def builtin_display_list(self) -> list[tuple[str, list[str], str]]:
+    def builtin_display_list(self) -> list[tuple[str, list[str], str, str | None]]:
         """
-        Список встроенных действий для показа пользователю: (основной_триггер, алиасы, эмодзи-превью).
+        Список встроенных действий для показа пользователю:
+        (основной_триггер, алиасы, эмодзи-превью, custom_emoji_id).
         Дедуплицирует алиасы (они указывают на тот же объект действия, что и основной ключ).
         """
         actions = ActionService._builtin_actions or {}
         seen: set[int] = set()
-        result: list[tuple[str, list[str], str]] = []
+        result: list[tuple[str, list[str], str, str | None]] = []
         for key, action in actions.items():
             if id(action) in seen:
                 continue
             seen.add(id(action))
 
             emoji = "✨"
+            custom_emoji_id: str | None = None
             mode = action.get("emoji_mode")
             if mode == "fixed" and action.get("emojis"):
                 emoji = action["emojis"][0]["emoji"]
+                custom_emoji_id = action["emojis"][0].get("id")
             elif mode == "actor_gender" and action.get("by_gender"):
                 first_group = next(iter(action["by_gender"].values()), None)
                 if first_group:
                     emoji = first_group[0]["emoji"]
+                    custom_emoji_id = first_group[0].get("id")
             elif mode == "pair" and action.get("pairs"):
                 first_group = next(iter(action["pairs"].values()), None)
                 if first_group:
                     emoji = first_group[0]["emoji"]
+                    custom_emoji_id = first_group[0].get("id")
 
-            result.append((key, action.get("aliases", []), emoji))
+            result.append((key, action.get("aliases", []), emoji, custom_emoji_id))
 
         return result
 

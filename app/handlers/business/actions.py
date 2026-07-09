@@ -168,7 +168,11 @@ async def _maybe_autoreact(message: Message, session: AsyncSession) -> None:
             )
         )
     except TelegramBadRequest as e:
-        logger.warning("Не удалось поставить авто-реакцию: %s", e)
+        # Известное ограничение Bot API: setMessageReaction не поддерживает
+        # business_connection_id по-настоящему (в отличие от send-методов),
+        # поэтому здесь регулярно ожидаема "message to react not found".
+        # Понижаем до debug, чтобы не засорять логи алертами по нефиксируемой причине.
+        logger.debug("Авто-реакция не применилась (ограничение Bot API для business): %s", e)
 
 
 @router.business_message()

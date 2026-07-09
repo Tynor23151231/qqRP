@@ -53,6 +53,12 @@ def main_menu_keyboard(user: User) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text=L(lang, "Авто-реакции", "Auto-reactions"),
+                    callback_data="menu:autoreact",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
                     text=L(lang, "Рефералы", "Referrals"),
                     callback_data="menu:referral",
                 ),

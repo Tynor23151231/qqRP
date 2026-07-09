@@ -4,7 +4,7 @@ import logging
 
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import LinkPreviewOptions, Message
+from aiogram.types import LinkPreviewOptions, Message, ReactionTypeCustomEmoji, ReactionTypeEmoji
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -133,8 +133,45 @@ async def _delete_source_message(message: Message) -> None:
         )
 
 
+async def _maybe_autoreact(message: Message, session: AsyncSession) -> None:
+    """
+    Если у владельца business-подключения настроена авто-реакция на конкретного
+    собеседника — ставит её на входящее сообщение от этого человека.
+    """
+    if message.business_connection_id is None or message.from_user is None:
+        return
+
+    user_service = UserService(session)
+    owner = await user_service.get_by_business_connection_id(message.business_connection_id)
+    if owner is None or not owner.has_premium:
+        return
+    if owner.autoreact_target_id is None or owner.autoreact_emoji is None:
+        return
+    if message.from_user.id != owner.autoreact_target_id:
+        return
+    if message.from_user.id == owner.telegram_id:
+        return  # не реагируем на собственные сообщения владельца
+
+    reaction = (
+        ReactionTypeCustomEmoji(custom_emoji_id=owner.autoreact_custom_emoji_id)
+        if owner.autoreact_custom_emoji_id
+        else ReactionTypeEmoji(emoji=owner.autoreact_emoji)
+    )
+    try:
+        await message.bot.set_message_reaction(
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            reaction=[reaction],
+            business_connection_id=message.business_connection_id,
+        )
+    except TelegramBadRequest as e:
+        logger.warning("Не удалось поставить авто-реакцию: %s", e)
+
+
 @router.business_message()
 async def handle_dot_command(message: Message, db_user: User, session: AsyncSession) -> None:
+    await _maybe_autoreact(message, session)
+
     if not message.text:
         return
 

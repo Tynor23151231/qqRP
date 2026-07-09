@@ -107,6 +107,20 @@ class UserService:
         user.discount_pending = False
         await self.session.commit()
 
+    async def set_autoreact(
+        self, user: User, target_id: int, emoji: str, custom_emoji_id: str | None
+    ) -> None:
+        user.autoreact_target_id = target_id
+        user.autoreact_emoji = emoji
+        user.autoreact_custom_emoji_id = custom_emoji_id
+        await self.session.commit()
+
+    async def clear_autoreact(self, user: User) -> None:
+        user.autoreact_target_id = None
+        user.autoreact_emoji = None
+        user.autoreact_custom_emoji_id = None
+        await self.session.commit()
+
     async def set_custom_name(self, user: User, custom_name: str | None) -> None:
         user.custom_name = custom_name
         await self.session.commit()

@@ -53,15 +53,21 @@ def _paywall_payload(lang: str) -> tuple[str, list]:
 
 
 def _keyboard(lang: str, *, enabled: bool) -> InlineKeyboardMarkup:
-    rows = [
-        [
-            InlineKeyboardButton(
-                text=L(lang, "🚫 Отключить", "🚫 Turn off") if enabled else L(lang, "✅ Включить", "✅ Turn on"),
-                callback_data="namebadge:toggle",
-            )
-        ],
-        back_to_menu_row(lang),
-    ]
+    if enabled:
+        button = InlineKeyboardButton(
+            text=L(lang, "Отключить", "Turn off"),
+            callback_data="namebadge:toggle",
+            icon_custom_emoji_id=emoji("disable")[1],
+            style="danger",
+        )
+    else:
+        button = InlineKeyboardButton(
+            text=L(lang, "Включить", "Turn on"),
+            callback_data="namebadge:toggle",
+            icon_custom_emoji_id=emoji("check")[1],
+            style="success",
+        )
+    rows = [[button], back_to_menu_row(lang)]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

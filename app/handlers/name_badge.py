@@ -31,27 +31,6 @@ def _build_last_name(original: str | None) -> str:
     return f"{trimmed} {_BADGE_SUFFIX}" if trimmed else _BADGE_SUFFIX
 
 
-def _paywall_payload(lang: str) -> tuple[str, list]:
-    b = EntityTextBuilder()
-    g, gid = emoji("lock")
-    b.add_custom_emoji(g, gid)
-    b.add_text(" ")
-    b.add_bold(L(lang, "Значок в фамилии — премиум-функция", "Name badge is a premium feature"))
-    b.add_text(
-        L(
-            lang,
-            "\n\nБот дописывает к твоей настоящей фамилии декоративный значок "
-            "⌞ 👜 ⌝ прямо в профиле Telegram (через Business API). Отключишь — "
-            "фамилия вернётся к исходной.\n\nОформить: ",
-            "\n\nThe bot appends a decorative badge ⌞ 👜 ⌝ to your real last name right "
-            "in your Telegram profile (via the Business API). Turn it off and your "
-            "last name goes back to normal.\n\nGet it: ",
-        )
-    )
-    b.add_code("/premium")
-    return b.build()
-
-
 def _keyboard(lang: str, *, enabled: bool) -> InlineKeyboardMarkup:
     if enabled:
         button = InlineKeyboardButton(
@@ -73,9 +52,6 @@ def _keyboard(lang: str, *, enabled: bool) -> InlineKeyboardMarkup:
 
 async def name_badge_screen(db_user: User) -> tuple[str, list, InlineKeyboardMarkup]:
     lang = db_user.language
-    if not db_user.has_premium:
-        text, entities = _paywall_payload(lang)
-        return text, entities, InlineKeyboardMarkup(inline_keyboard=[back_to_menu_row(lang)])
 
     b = EntityTextBuilder()
     b.add_bold(L(lang, "Значок в фамилии", "Name badge"))
@@ -126,9 +102,6 @@ async def cb_menu_name_badge(callback: CallbackQuery, db_user: User) -> None:
 @router.callback_query(F.data == "namebadge:toggle")
 async def cb_toggle_name_badge(callback: CallbackQuery, db_user: User, session: AsyncSession) -> None:
     lang = db_user.language
-    if not db_user.has_premium:
-        await callback.answer(L(lang, "Нужен премиум", "Premium required"), show_alert=True)
-        return
     if db_user.business_connection_id is None:
         await callback.answer(
             L(lang, "Сначала подключи Business Bot", "Connect the Business Bot first"), show_alert=True

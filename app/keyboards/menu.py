@@ -53,6 +53,12 @@ def main_menu_keyboard(user: User) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text=L(lang, "👜 Значок в фамилии", "👜 Name badge"),
+                    callback_data="menu:namebadge",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
                     text=L(lang, "Рефералы", "Referrals"),
                     callback_data="menu:referral",
                 ),

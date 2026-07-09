@@ -53,6 +53,18 @@ async def _run_light_migrations() -> None:
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS discount_pending BOOLEAN DEFAULT FALSE")
         )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS name_badge_enabled BOOLEAN DEFAULT FALSE")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS name_badge_original_first_name VARCHAR(64)")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS name_badge_original_last_name VARCHAR(64)")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_edit_name BOOLEAN DEFAULT FALSE")
+        )
 
 
 async def init_models() -> None:

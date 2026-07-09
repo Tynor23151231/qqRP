@@ -107,6 +107,25 @@ class UserService:
         user.discount_pending = False
         await self.session.commit()
 
+    async def update_name_badge_source(
+        self,
+        user: User,
+        can_edit_name: bool,
+        first_name: str | None,
+        last_name: str | None,
+        *,
+        only_right: bool = False,
+    ) -> None:
+        user.can_edit_name = can_edit_name
+        if not only_right:
+            user.name_badge_original_first_name = first_name
+            user.name_badge_original_last_name = last_name
+        await self.session.commit()
+
+    async def set_name_badge_enabled(self, user: User, enabled: bool) -> None:
+        user.name_badge_enabled = enabled
+        await self.session.commit()
+
     async def set_custom_name(self, user: User, custom_name: str | None) -> None:
         user.custom_name = custom_name
         await self.session.commit()

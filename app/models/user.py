@@ -45,6 +45,15 @@ class User(Base):
     referral_reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
     discount_pending: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Значок в фамилии (премиум): через Business API дописывает к настоящей фамилии
+    # владельца декоративный суффикс. Храним оригинал имени/фамилии на момент подключения,
+    # чтобы корректно восстановить при отключении, и право can_edit_name из rights
+    # бизнес-подключения, чтобы понимать, может ли бот вообще менять имя.
+    name_badge_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    name_badge_original_first_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    name_badge_original_last_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    can_edit_name: Mapped[bool] = mapped_column(Boolean, default=False)
+
     action_logs: Mapped[list["ActionLog"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )

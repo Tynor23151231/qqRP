@@ -54,6 +54,18 @@ async def _run_light_migrations() -> None:
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS discount_pending BOOLEAN DEFAULT FALSE")
         )
         await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_tier VARCHAR(16)")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS discount_expires_at TIMESTAMPTZ")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS business_connected_at TIMESTAMPTZ")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_reward_claimed BOOLEAN DEFAULT FALSE")
+        )
+        await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS name_badge_enabled BOOLEAN DEFAULT FALSE")
         )
         await conn.execute(

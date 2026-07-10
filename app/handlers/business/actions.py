@@ -146,7 +146,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             text, entities = subscription_required_payload(db_user.language)
             await _send_business_message(message, text, entities)
             return
-        if not db_user.has_premium:
+        if not db_user.has_plus:
             b = EntityTextBuilder()
             g, gid = emoji("lock")
             b.add_custom_emoji(g, gid)
@@ -155,9 +155,9 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             b.add_text(
                 L(
                     db_user.language,
-                    f" — платная функция ({settings.premium_price_stars} ⭐️ / "
+                    f" — функция Премиум+ ({settings.premium_price_stars} ⭐️ / "
                     f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой ",
-                    f" is a paid feature ({settings.premium_price_stars} ⭐️ / "
+                    f" is a Premium+ feature ({settings.premium_price_stars} ⭐️ / "
                     f"{settings.premium_duration_days} days). Get it in a private chat with the bot via ",
                 )
             )

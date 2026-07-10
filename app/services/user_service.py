@@ -134,11 +134,17 @@ class UserService:
         user.business_connection_id = connection_id
         await self.session.commit()
 
-    async def grant_premium(self, user: User, days: int, extend: bool = True) -> dt.datetime:
+    async def grant_premium(
+        self, user: User, days: int, tier: str = "plus", extend: bool = True
+    ) -> dt.datetime:
         """
         Выдаёт/продлевает премиум на `days` дней от текущего момента.
         Если extend=True и подписка ещё активна — продлеваем от даты её окончания
         (а не от "сейчас"), чтобы повторная покупка не пропадала впустую.
+
+        tier: "basic" (до 7 своих RP, без .typing) или "plus" (без ограничений).
+        Если у пользователя уже активен "plus", а покупка/награда — "basic",
+        уровень не понижаем (просто продлеваем срок текущего "plus").
         """
         now = dt.datetime.now(dt.timezone.utc)
         base = now
@@ -148,8 +154,22 @@ class UserService:
                 base = base.replace(tzinfo=dt.timezone.utc)
 
         user.premium_until = base + dt.timedelta(days=days)
+        if not (user.has_premium and user.premium_tier == "plus" and tier == "basic"):
+            user.premium_tier = tier
         await self.session.commit()
         return user.premium_until
+
+    async def grant_weekly_reward(self, user: User) -> dt.datetime:
+        """
+        Одноразовая награда за 3 дня использования подключённого Business Bot:
+        5 дней Премиум+ и скидка 50% на Премиум+, которая сгорает через 7 дней.
+        """
+        until = await self.grant_premium(user, days=5, tier="plus")
+        user.weekly_reward_claimed = True
+        user.discount_pending = True
+        user.discount_expires_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=7)
+        await self.session.commit()
+        return until
 
     async def revoke_premium(self, user: User) -> None:
         user.premium_until = None

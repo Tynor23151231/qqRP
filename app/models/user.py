@@ -35,8 +35,11 @@ class User(Base):
     total_actions: Mapped[int] = mapped_column(default=0)
     last_used_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Премиум-подписка (платные функции вроде .typing)
+    # Премиум-подписка. premium_tier: "basic" (дешёвый — до 7 своих RP, без .typing)
+    # или "plus" (полный — безлимит RP + .typing). premium_until — общий срок действия
+    # текущего уровня (продление наслаивает дни поверх текущего tier).
     premium_until: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    premium_tier: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # Реферальная программа: 10 приглашённых (кто дошёл до выбора пола) -> 7 дней премиума
     # + одноразовая скидка 50% на одну покупку. Награда выдаётся один раз (акция одноразовая).
@@ -44,6 +47,12 @@ class User(Base):
     referral_count: Mapped[int] = mapped_column(default=0)
     referral_reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
     discount_pending: Mapped[bool] = mapped_column(Boolean, default=False)
+    discount_expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Еженедельный "конкурс": через 3 дня после первого подключения Business Bot —
+    # автоматически 5 дней Премиум+ и скидка 50% на Премиум+ (сгорает через 7 дней).
+    business_connected_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    weekly_reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Значок в фамилии (премиум): через Business API дописывает к настоящей фамилии
     # владельца декоративный суффикс. Храним оригинал имени/фамилии на момент подключения,
@@ -74,6 +83,30 @@ class User(Base):
         if premium_until.tzinfo is None:
             premium_until = premium_until.replace(tzinfo=dt.timezone.utc)
         return premium_until > now
+
+    @property
+    def has_plus(self) -> bool:
+        return self.has_premium and self.premium_tier == "plus"
+
+    @property
+    def custom_rp_limit(self) -> int | None:
+        """None = безлимит (Премиум+), число = максимум своих RP (базовый премиум), 0 = нет доступа."""
+        if not self.has_premium:
+            return 0
+        if self.premium_tier == "plus":
+            return None
+        return 7
+
+    @property
+    def discount_active(self) -> bool:
+        if not self.discount_pending:
+            return False
+        if self.discount_expires_at is None:
+            return True
+        expires = self.discount_expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=dt.timezone.utc)
+        return expires > dt.datetime.now(dt.timezone.utc)
 
     @property
     def display_name(self) -> str:

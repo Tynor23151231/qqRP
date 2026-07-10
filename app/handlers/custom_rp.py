@@ -71,6 +71,10 @@ async def _my_rp_list_payload(db_user: User, session: AsyncSession) -> tuple[str
     b.add_text(" ")
     b.add_bold(L(lang, "Свои RP-действия", "My RP actions"))
 
+    limit = db_user.custom_rp_limit
+    if limit is not None:
+        b.add_text(L(lang, f" ({len(triggers)}/{limit})", f" ({len(triggers)}/{limit})"))
+
     if not triggers:
         b.add_text(L(lang, "\n\nПока не создано ни одного своего действия.", "\n\nNo custom actions created yet."))
     else:
@@ -371,7 +375,37 @@ async def cb_share_cancel(callback: CallbackQuery, db_user: User) -> None:
 
 
 @router.message(Command("addrp"))
-async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None:
+async def _limit_reached_payload(db_user: User, session: AsyncSession) -> tuple[str, list] | None:
+    """Если у пользователя базовый тариф и лимit своих RP исчерпан — возвращает текст отказа."""
+    limit = db_user.custom_rp_limit
+    if limit is None:
+        return None  # Премиум+ — безлимит
+
+    action_service = ActionService(session)
+    current = len(await action_service.list_custom_triggers(db_user.id))
+    if current < limit:
+        return None
+
+    lang = db_user.language
+    b = EntityTextBuilder()
+    g, gid = emoji("lock")
+    b.add_custom_emoji(g, gid)
+    b.add_text(
+        L(
+            lang,
+            f" На тарифе «Премиум» можно создать до {limit} своих RP-действий — лимит уже "
+            "исчерпан. Удали одно из существующих или перейди на Премиум+ (безлимит) в ",
+            f" On the \"Premium\" plan you can create up to {limit} custom RP actions — the "
+            "limit is already reached. Delete one of your existing actions, or upgrade to "
+            "Premium+ (unlimited) in ",
+        )
+    )
+    b.add_code("/premium")
+    b.add_text(".")
+    return b.build()
+
+
+async def cmd_add_rp(message: Message, state: FSMContext, db_user: User, session: AsyncSession) -> None:
     lang = db_user.language
     if not await is_subscribed(message.bot, message.from_user.id):
         text, entities = subscription_required_payload(lang)
@@ -383,12 +417,18 @@ async def cmd_add_rp(message: Message, state: FSMContext, db_user: User) -> None
         await message.answer(text, entities=entities, parse_mode=None)
         return
 
+    limit_payload = await _limit_reached_payload(db_user, session)
+    if limit_payload is not None:
+        text, entities = limit_payload
+        await message.answer(text, entities=entities, parse_mode=None)
+        return
+
     await state.update_data(editing=False)
     await _prompt_trigger(message, state, lang)
 
 
 @router.callback_query(F.data == "myrp:new")
-async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User) -> None:
+async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User, session: AsyncSession) -> None:
     lang = db_user.language
     if not await is_subscribed(callback.bot, callback.from_user.id):
         text, entities = subscription_required_payload(lang)
@@ -398,6 +438,14 @@ async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User)
     if not db_user.has_premium:
         await callback.answer(L(lang, "Нужен премиум", "Premium required"), show_alert=True)
         return
+
+    limit_payload = await _limit_reached_payload(db_user, session)
+    if limit_payload is not None:
+        text, entities = limit_payload
+        await callback.answer()
+        await callback.message.answer(text, entities=entities, parse_mode=None)
+        return
+
     await callback.answer()
     await state.update_data(editing=False)
     await _prompt_trigger(callback.message, state, lang)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import datetime as dt
+
 from aiogram import Router
 from aiogram.types import BusinessConnection
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +20,11 @@ async def on_business_connection(
     service = UserService(session)
     connection_id = connection.id if connection.is_enabled else None
     await service.set_business_connection(db_user, connection_id)
+
+    if connection.is_enabled and db_user.business_connected_at is None:
+        # Фиксируем момент первого подключения — от него считаем 3 дня до награды.
+        db_user.business_connected_at = dt.datetime.now(dt.timezone.utc)
+        await session.commit()
 
     can_edit_name = bool(connection.rights and connection.rights.can_edit_name)
     # Оригинал имени/фамилии обновляем, только если у нас ещё не включён значок —

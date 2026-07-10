@@ -73,7 +73,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             text, entities = subscription_required_payload(lang)
             await message.reply(text, entities=entities, parse_mode=None)
             return
-        if not db_user.has_premium:
+        if not db_user.has_plus:
             b = EntityTextBuilder()
             g, gid = emoji("lock")
             b.add_custom_emoji(g, gid)
@@ -82,9 +82,9 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             b.add_text(
                 L(
                     lang,
-                    f" — платная функция ({settings.premium_price_stars} ⭐️ / "
+                    f" — функция Премиум+ ({settings.premium_price_stars} ⭐️ / "
                     f"{settings.premium_duration_days} дней). Оформи в личном чате с ботом командой ",
-                    f" is a paid feature ({settings.premium_price_stars} ⭐️ / "
+                    f" is a Premium+ feature ({settings.premium_price_stars} ⭐️ / "
                     f"{settings.premium_duration_days} days). Get it in a private chat with the bot via ",
                 )
             )

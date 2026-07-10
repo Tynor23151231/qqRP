@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # Стоимость и длительность премиум-подписки (Telegram Stars, XTR)
     premium_price_stars: int = 99
     premium_duration_days: int = 30
+    basic_premium_price_stars: int = 25
+    basic_premium_max_custom_rp: int = 7
 
     # Обязательная подписка на канал перед использованием бота.
     # chat_id канала/супергруппы (с "-100" префиксом) и публичный username без "@".

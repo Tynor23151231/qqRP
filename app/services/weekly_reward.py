@@ -17,7 +17,7 @@ from app.utils.premium_emoji import emoji
 
 logger = logging.getLogger(__name__)
 
-_CHECK_INTERVAL_SECONDS = 30 * 60  # раз в полчаса достаточно, награда всё равно одноразовая
+_CHECK_INTERVAL_SECONDS = 20 * 60 * 60  # раз в 20 часов, награда всё равно одноразовая
 _THRESHOLD = dt.timedelta(days=3)
 
 

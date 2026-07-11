@@ -6,6 +6,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
 from app.config import settings
+from app.services import checker_client
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +17,16 @@ async def is_subscribed(bot: Bot, user_id: int) -> bool:
     """
     Проверяет, состоит ли пользователь в обязательном канале (settings.required_channel_id).
 
-    Fail-open: если бот не может проверить членство (не добавлен в канал как админ,
-    неверный chat_id и т.п.) — пропускаем пользователя, а не блокируем регистрацию
-    всем подряд из-за ошибки конфигурации. Ошибка логируется, чтобы её было видно.
+    Приоритет: внешний сервис-проверяльщик (если настроен CHECKER_URL/CHECKER_API_KEY),
+    иначе — нативная проверка через Bot API (getChatMember).
+
+    Fail-open: если ни один способ не смог проверить членство — пропускаем пользователя,
+    а не блокируем регистрацию всем подряд из-за ошибки конфигурации/сети.
     """
+    checker_result = await checker_client.check_subscribed(user_id, f"@{settings.required_channel_username}")
+    if checker_result is not None:
+        return checker_result
+
     try:
         member = await bot.get_chat_member(chat_id=settings.required_channel_id, user_id=user_id)
     except (TelegramBadRequest, TelegramForbiddenError) as e:

@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     required_channel_id: int = -1003062068266
     required_channel_username: str = "Infoaboutqq"
 
+    # Внешний сервис-проверяльщик подписок (qqkop7555-ops/check на Railway).
+    # Если не задан — используем нативную проверку через Bot API (getChatMember).
+    checker_url: str | None = None
+    checker_api_key: str | None = None
+
     # Значения по умолчанию для пользовательских настроек
     default_language: str = "ru"
     log_level: str = "INFO"

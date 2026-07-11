@@ -14,9 +14,10 @@ router = Router(name="admin")
 
 _HELP_TEXT = (
     "🛠 <b>Админ-консоль qqRP Bot</b>\n\n"
-    "<code>/grant_premium @username [дней]</code> — выдать/продлить премиум "
-    "(по умолчанию 30 дней, дни прибавляются к текущим, если премиум уже активен)\n"
-    "<code>/grant_premium 123456789 [дней]</code> — то же самое по числовому ID\n"
+    "<code>/grant_premium @username [дней] [plus|basic]</code> — выдать/продлить премиум "
+    "(по умолчанию 30 дней и уровень plus = Премиум+; дни прибавляются к текущим, если "
+    "премиум уже активен; basic не понижает уже активный plus)\n"
+    "<code>/grant_premium 123456789 [дней] [plus|basic]</code> — то же самое по числовому ID\n"
     "<code>/revoke_premium @username</code> — снять премиум досрочно\n"
     "<code>/premium_list</code> — список всех активных премиум-пользователей\n"
     "<code>/find_user @username</code> — быстрая информация о пользователе"
@@ -95,8 +96,13 @@ async def cmd_grant_premium(message: Message, command: CommandObject, session: A
     parts = command.args.split()
     target_raw = parts[0]
     days = settings.premium_duration_days
-    if len(parts) > 1 and parts[1].isdigit():
-        days = int(parts[1])
+    tier = "plus"
+
+    for extra in parts[1:]:
+        if extra.isdigit():
+            days = int(extra)
+        elif extra.lower() in ("plus", "basic"):
+            tier = extra.lower()
 
     target = await _resolve_target_user(message.bot, session, target_raw)
     if target is None:
@@ -104,9 +110,10 @@ async def cmd_grant_premium(message: Message, command: CommandObject, session: A
         return
 
     user_service = UserService(session)
-    until = await user_service.grant_premium(target, days)
+    until = await user_service.grant_premium(target, days, tier=tier)
+    tier_label = "Премиум+" if tier == "plus" else "Премиум"
     await message.answer(
-        f"✅ Премиум выдан пользователю {target.display_name} "
+        f"✅ {tier_label} выдан пользователю {target.display_name} "
         f"(id {target.telegram_id}) до {until.strftime('%d.%m.%Y %H:%M UTC')}."
     )
 
@@ -143,7 +150,8 @@ async def cmd_premium_list(message: Message, session: AsyncSession) -> None:
 
     lines = [
         f"• {u.display_name} (@{u.username or '—'}, id {u.telegram_id}) — "
-        f"до {u.premium_until.strftime('%d.%m.%Y %H:%M UTC')}"
+        f"{'Премиум+' if u.premium_tier == 'plus' else 'Премиум'} до "
+        f"{u.premium_until.strftime('%d.%m.%Y %H:%M UTC')}"
         for u in users
     ]
     await message.answer("💎 <b>Активные премиум-пользователи:</b>\n" + "\n".join(lines))
@@ -163,9 +171,11 @@ async def cmd_find_user(message: Message, command: CommandObject, session: Async
         await message.answer(_not_found_text())
         return
 
-    premium_line = (
-        f"до {target.premium_until.strftime('%d.%m.%Y %H:%M UTC')}" if target.has_premium else "нет"
-    )
+    if target.has_premium:
+        tier_label = "Премиум+" if target.premium_tier == "plus" else "Премиум"
+        premium_line = f"{tier_label} до {target.premium_until.strftime('%d.%m.%Y %H:%M UTC')}"
+    else:
+        premium_line = "нет"
     await message.answer(
         f"👤 <b>{target.display_name}</b>\n"
         f"ID: <code>{target.telegram_id}</code>\n"

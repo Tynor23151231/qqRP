@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 _ALLOWED_STATUSES = {"member", "administrator", "creator"}
 
 
-async def is_subscribed(bot: Bot, user_id: int) -> bool:
+async def is_subscribed(bot: Bot, user_id: int, username: str | None = None) -> bool:
     """
     Проверяет, состоит ли пользователь в обязательном канале (settings.required_channel_id).
 
@@ -23,7 +23,9 @@ async def is_subscribed(bot: Bot, user_id: int) -> bool:
     Fail-open: если ни один способ не смог проверить членство — пропускаем пользователя,
     а не блокируем регистрацию всем подряд из-за ошибки конфигурации/сети.
     """
-    checker_result = await checker_client.check_subscribed(user_id, f"@{settings.required_channel_username}")
+    checker_result = await checker_client.check_subscribed(
+        user_id, f"@{settings.required_channel_username}", username
+    )
     if checker_result is not None:
         return checker_result
 

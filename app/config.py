@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Если не задан — используем нативную проверку через Bot API (getChatMember).
     checker_url: str | None = None
     checker_api_key: str | None = None
+    bot_name: str = "qqRPBot"
 
     # Значения по умолчанию для пользовательских настроек
     default_language: str = "ru"

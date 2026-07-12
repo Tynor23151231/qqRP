@@ -149,7 +149,7 @@ def _menu_home_payload(lang: str, name: str | None = None) -> tuple[str, list]:
 @router.message(CommandStart())
 async def cmd_start(message: Message, db_user: User, session: AsyncSession, command: CommandObject) -> None:
     lang = db_user.language
-    if not await is_subscribed(message.bot, message.from_user.id):
+    if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
         text, entities = subscription_required_payload(lang)
         await message.answer(
             text, entities=entities, parse_mode=None, reply_markup=subscription_keyboard(lang)
@@ -184,7 +184,7 @@ async def cmd_start(message: Message, db_user: User, session: AsyncSession, comm
 @router.callback_query(F.data == "check_subscription")
 async def cb_check_subscription(callback: CallbackQuery, db_user: User) -> None:
     lang = db_user.language
-    if not await is_subscribed(callback.bot, callback.from_user.id):
+    if not await is_subscribed(callback.bot, callback.from_user.id, callback.from_user.username):
         await callback.answer(
             L(lang, "Пока не вижу подписку — подпишись и попробуй ещё раз 🙂", "I still don't see a subscription — subscribe and try again 🙂"),
             show_alert=True,
@@ -206,7 +206,7 @@ async def cb_check_subscription(callback: CallbackQuery, db_user: User) -> None:
 @router.message(Command("menu"))
 async def cmd_menu(message: Message, db_user: User) -> None:
     lang = db_user.language
-    if not await is_subscribed(message.bot, message.from_user.id):
+    if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
         text, entities = subscription_required_payload(lang)
         await message.answer(
             text, entities=entities, parse_mode=None, reply_markup=subscription_keyboard(lang)

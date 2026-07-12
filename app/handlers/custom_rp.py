@@ -407,7 +407,7 @@ async def _limit_reached_payload(db_user: User, session: AsyncSession) -> tuple[
 
 async def cmd_add_rp(message: Message, state: FSMContext, db_user: User, session: AsyncSession) -> None:
     lang = db_user.language
-    if not await is_subscribed(message.bot, message.from_user.id):
+    if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
         text, entities = subscription_required_payload(lang)
         await message.answer(text, entities=entities, parse_mode=None)
         return
@@ -430,7 +430,7 @@ async def cmd_add_rp(message: Message, state: FSMContext, db_user: User, session
 @router.callback_query(F.data == "myrp:new")
 async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User, session: AsyncSession) -> None:
     lang = db_user.language
-    if not await is_subscribed(callback.bot, callback.from_user.id):
+    if not await is_subscribed(callback.bot, callback.from_user.id, callback.from_user.username):
         text, entities = subscription_required_payload(lang)
         await callback.answer()
         await callback.message.answer(text, entities=entities, parse_mode=None)

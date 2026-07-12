@@ -8,14 +8,14 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT = aiohttp.ClientTimeout(total=5)
+_TIMEOUT = aiohttp.ClientTimeout(total=10)
 
 
 def is_configured() -> bool:
     return bool(settings.checker_url and settings.checker_api_key)
 
 
-async def check_subscribed(user_id: int, channel: str) -> bool | None:
+async def check_subscribed(user_id: int, channel: str, username: str | None = None) -> bool | None:
     """
     Проверка подписки на один канал через внешний сервис-проверяльщик.
     Возвращает None, если сервис не настроен или недоступен (вызывающий код
@@ -29,7 +29,12 @@ async def check_subscribed(user_id: int, channel: str) -> bool | None:
         async with aiohttp.ClientSession(timeout=_TIMEOUT) as session:
             async with session.get(
                 url,
-                params={"user_id": user_id, "channel": channel},
+                params={
+                    "user_id": user_id,
+                    "channel": channel,
+                    "bot_name": settings.bot_name,
+                    "username": username or "",
+                },
                 headers={"X-API-Key": settings.checker_api_key},
             ) as resp:
                 if resp.status != 200:
@@ -42,7 +47,9 @@ async def check_subscribed(user_id: int, channel: str) -> bool | None:
         return None
 
 
-async def check_subscribed_to_all(user_id: int, channels: list[str]) -> bool | None:
+async def check_subscribed_to_all(
+    user_id: int, channels: list[str], username: str | None = None
+) -> bool | None:
     """Проверка подписки сразу на несколько каналов одним запросом. None = сервис недоступен."""
     if not is_configured():
         return None
@@ -52,7 +59,12 @@ async def check_subscribed_to_all(user_id: int, channels: list[str]) -> bool | N
         async with aiohttp.ClientSession(timeout=_TIMEOUT) as session:
             async with session.get(
                 url,
-                params={"user_id": user_id, "channels": ",".join(channels)},
+                params={
+                    "user_id": user_id,
+                    "channels": ",".join(channels),
+                    "bot_name": settings.bot_name,
+                    "username": username or "",
+                },
                 headers={"X-API-Key": settings.checker_api_key},
             ) as resp:
                 if resp.status != 200:

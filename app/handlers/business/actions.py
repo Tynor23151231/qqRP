@@ -142,7 +142,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     if typing_payload is not None:
         if not await _is_from_connection_owner(message, session):
             return
-        if not await is_subscribed(message.bot, message.from_user.id):
+        if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
             text, entities = subscription_required_payload(db_user.language)
             await _send_business_message(message, text, entities)
             return
@@ -182,7 +182,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         # молча игнорируем, чтобы не позволить постороннему слать сообщения от имени владельца.
         return
 
-    if not await is_subscribed(message.bot, message.from_user.id):
+    if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
         text, entities = subscription_required_payload(db_user.language)
         await _send_business_message(message, text, entities)
         return

@@ -69,7 +69,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     lang = db_user.language
     typing_payload = parse_typing_command(message.text, prefix=settings.command_prefix)
     if typing_payload is not None:
-        if not await is_subscribed(message.bot, message.from_user.id):
+        if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
             text, entities = subscription_required_payload(lang)
             await message.reply(text, entities=entities, parse_mode=None)
             return
@@ -101,7 +101,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     if parsed is None:
         return  # обычное сообщение, не RP-команда
 
-    if not await is_subscribed(message.bot, message.from_user.id):
+    if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
         text, entities = subscription_required_payload(lang)
         await message.reply(text, entities=entities, parse_mode=None)
         return

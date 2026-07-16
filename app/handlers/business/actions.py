@@ -85,6 +85,29 @@ async def _resolve_target(
     return None
 
 
+async def _resolve_targets(
+    message: Message, parsed, session: AsyncSession, lang: str
+) -> list[tuple[int, str, str | None]]:
+    """
+    Если в команде указано несколько @username — резолвит их все (мульти-таргет).
+    Иначе — прежнее поведение через _resolve_target (reply/один @username/DM-собеседник).
+    """
+    if len(parsed.target_usernames) >= 2:
+        resolved: list[tuple[int, str, str | None]] = []
+        for uname in parsed.target_usernames:
+            try:
+                chat = await message.bot.get_chat(f"@{uname}")
+            except TelegramBadRequest:
+                continue
+            fallback_name = getattr(chat, "first_name", None) or getattr(chat, "title", None) or uname
+            name, un = await _display_info_for(session, chat.id, fallback_name, chat.username or uname)
+            resolved.append((chat.id, name, un))
+        return resolved
+
+    single = await _resolve_target(message, parsed.target_username, session, lang)
+    return [single] if single is not None else []
+
+
 async def _send_business_message(message: Message, text: str, entities) -> None:
     await message.bot.send_message(
         chat_id=message.chat.id,
@@ -220,8 +243,8 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         await _send_business_message(message, text, entities)
         return
 
-    target = await _resolve_target(message, parsed.target_username, session, db_user.language)
-    if target is None:
+    targets = await _resolve_targets(message, parsed, session, db_user.language)
+    if not targets:
         if parsed.target_username:
             await _send_business_message(
                 message,
@@ -246,11 +269,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             )
         return
 
-    target_id, target_name, target_username = target
-
-    rendered = await action_service.render(
-        db_user, parsed.action_key, target_id, target_name, target_username, keyword=parsed.keyword
-    )
+    rendered = await action_service.render(db_user, parsed.action_key, targets, keyword=parsed.keyword)
     if rendered is None:
         return  # неизвестная команда — молча игнорируем, чтобы не мешать обычной переписке
 
@@ -258,4 +277,5 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     await _send_business_action(message, rendered)
 
     user_service = UserService(session)
-    await user_service.register_action_usage(db_user, parsed.action_key, target_id)
+    for target_id, _, _ in targets:
+        await user_service.register_action_usage(db_user, parsed.action_key, target_id)

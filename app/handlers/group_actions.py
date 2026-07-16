@@ -56,6 +56,29 @@ async def _resolve_target(
     return None
 
 
+async def _resolve_targets(
+    message: Message, parsed, session: AsyncSession, lang: str
+) -> list[tuple[int, str, str | None]]:
+    """Мульти-таргет при 2+ @username, иначе прежнее поведение через _resolve_target."""
+    if len(parsed.target_usernames) >= 2:
+        user_service = UserService(session)
+        resolved: list[tuple[int, str, str | None]] = []
+        for uname in parsed.target_usernames:
+            try:
+                chat = await message.bot.get_chat(f"@{uname}")
+            except TelegramBadRequest:
+                continue
+            fallback_name = getattr(chat, "first_name", None) or getattr(chat, "title", None) or uname
+            known = await user_service.get_by_telegram_id(chat.id)
+            name = (known.custom_name if known else None) or fallback_name
+            un = (known.username if known else None) or chat.username or uname
+            resolved.append((chat.id, name, un))
+        return resolved
+
+    single = await _resolve_target(message, parsed.target_username, session, lang)
+    return [single] if single is not None else []
+
+
 async def _delete_source_message(message: Message) -> None:
     try:
         await message.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
@@ -137,8 +160,8 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         await message.reply(text, entities=entities, parse_mode=None)
         return
 
-    target = await _resolve_target(message, parsed.target_username, session, lang)
-    if target is None:
+    targets = await _resolve_targets(message, parsed, session, lang)
+    if not targets:
         if parsed.target_username:
             await message.reply(
                 L(
@@ -159,11 +182,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             )
         return
 
-    target_id, target_name, target_username = target
-
-    rendered = await action_service.render(
-        db_user, parsed.action_key, target_id, target_name, target_username, keyword=parsed.keyword
-    )
+    rendered = await action_service.render(db_user, parsed.action_key, targets, keyword=parsed.keyword)
     if rendered is None:
         return  # неизвестная команда — молча игнорируем, чтобы не мешать обычной переписке
 
@@ -186,4 +205,5 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         )
 
     user_service = UserService(session)
-    await user_service.register_action_usage(db_user, parsed.action_key, target_id)
+    for target_id, _, _ in targets:
+        await user_service.register_action_usage(db_user, parsed.action_key, target_id)

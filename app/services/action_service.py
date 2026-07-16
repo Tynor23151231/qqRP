@@ -135,11 +135,12 @@ class ActionService:
         emojis: list[tuple[str, str | None]],
         template: str,
         gif_file_id: str | None = None,
+        emoji_display_mode: str = "random",
     ) -> CustomTrigger:
         """
-        emojis — список (emoji, custom_emoji_id) в порядке добавления. При каждом
-        использовании действия случайно выбирается один эмодзи из набора (как и
-        у встроенных действий) — премиум-пользователи могут задать сразу несколько.
+        emojis — список (emoji, custom_emoji_id) в порядке добавления.
+        emoji_display_mode: "random" — при каждом использовании случайно выбирается один
+        эмодзи из набора (как у встроенных действий); "all" — показываются сразу все.
 
         gif_file_id — необязательный file_id гифки/видео, которая будет отправляться
         вместе с текстом действия (как подпись к send_animation).
@@ -159,6 +160,7 @@ class ActionService:
             existing.emojis_json = emojis_json
             existing.template = template
             existing.gif_file_id = gif_file_id
+            existing.emoji_display_mode = emoji_display_mode
             await self.session.commit()
             await self.session.refresh(existing)
             return existing
@@ -171,6 +173,7 @@ class ActionService:
             emojis_json=emojis_json,
             template=template,
             gif_file_id=gif_file_id,
+            emoji_display_mode=emoji_display_mode,
         )
         self.session.add(trigger_obj)
         await self.session.commit()
@@ -262,13 +265,13 @@ class ActionService:
         self,
         template_text: str,
         actor: User,
-        target_id: int,
-        target_name: str,
-        target_username: str | None,
+        targets: list[tuple[int, str, str | None]],
         verb: str | None,
         emoji_sequence: list[tuple[str, str | None]],
+        lang: str = "ru",
     ) -> RenderedAction:
-        """Подставляет токены {user}/{target}/{verb} и добавляет эмодзи-префикс с entities."""
+        """Подставляет токены {user}/{target}/{verb} и добавляет эмодзи-префикс с entities.
+        {target} при нескольких целях рендерится как естественный список: "A, B и C"."""
         builder = EntityTextBuilder()
 
         if emoji_sequence:
@@ -282,7 +285,13 @@ class ActionService:
             if token == "user":
                 builder.add_mention(actor.display_name, actor.telegram_id, actor.username)
             elif token == "target":
-                builder.add_mention(target_name, target_id, target_username)
+                last_idx = len(targets) - 1
+                for i, (t_id, t_name, t_username) in enumerate(targets):
+                    builder.add_mention(t_name, t_id, t_username)
+                    if i < last_idx - 1:
+                        builder.add_text(", ")
+                    elif i == last_idx - 1:
+                        builder.add_text(" и " if lang != "en" else " and ")
             elif token == "verb":
                 builder.add_text(verb or "")
             pos = match.end()
@@ -299,9 +308,7 @@ class ActionService:
         self,
         actor: User,
         action_key: str,
-        target_id: int,
-        target_name: str,
-        target_username: str | None = None,
+        targets: list[tuple[int, str, str | None]],
         keyword: str | None = None,
     ) -> RenderedAction | None:
         """
@@ -309,18 +316,26 @@ class ActionService:
         либо None, если такого действия не существует ни среди встроенных,
         ни среди пользовательских триггеров actor'а.
 
+        targets — список (id, имя, username) целей; при нескольких {target} рендерится
+        как естественный список ("A, B и C").
+
         Приоритет: если у actor'а есть СВОЙ триггер с этим именем (в т.ч. совпадающий
         по имени со встроенным действием) — используется он. Так пользователь может
         переопределить даже встроенное действие своим текстом/эмодзи; если он потом
         удалит свой триггер — поведение вернётся к встроенному автоматически.
         """
+        first_target_id = targets[0][0] if targets else 0
+
         custom = await self.get_custom_trigger(actor.id, action_key)
         if custom is not None:
             candidates = self._custom_trigger_emojis(custom)
-            emoji_sequence = [random.choice(candidates)] if candidates else []
+            if custom.emoji_display_mode == "all":
+                emoji_sequence = candidates
+            else:
+                emoji_sequence = [random.choice(candidates)] if candidates else []
             rendered = self._render_template(
-                custom.template, actor, target_id, target_name, target_username,
-                verb=None, emoji_sequence=emoji_sequence,
+                custom.template, actor, targets,
+                verb=None, emoji_sequence=emoji_sequence, lang=actor.language,
             )
             return RenderedAction(
                 text=rendered.text, entities=rendered.entities, gif_file_id=custom.gif_file_id
@@ -334,11 +349,11 @@ class ActionService:
             else:
                 verb = self._verb_form(builtin["verb"], actor.gender)
                 template = builtin["template"]
-            candidates = await self._select_builtin_emojis(builtin, actor, target_id, keyword)
+            candidates = await self._select_builtin_emojis(builtin, actor, first_target_id, keyword)
             emoji_sequence = self._pick_emoji(builtin, candidates)
             return self._render_template(
-                template, actor, target_id, target_name, target_username,
-                verb=verb, emoji_sequence=emoji_sequence,
+                template, actor, targets,
+                verb=verb, emoji_sequence=emoji_sequence, lang=actor.language,
             )
 
         return None

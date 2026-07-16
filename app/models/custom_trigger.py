@@ -32,10 +32,11 @@ class CustomTrigger(Base):
     custom_emoji_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Полный набор эмодзи в формате JSON: [{"emoji": "😛", "id": "123..."}, ...].
-    # При использовании действия из набора случайно выбирается один эмодзи —
-    # как и у встроенных действий. Если пусто (старые записи) — используется
-    # одиночная пара emoji/custom_emoji_id выше.
+    # emoji_display_mode="random" (по умолчанию) — при каждом использовании случайно
+    # выбирается один эмодзи из набора; "all" — показываются все сразу, друг за другом.
+    # Если пусто (старые записи) — используется одиночная пара emoji/custom_emoji_id выше.
     emojis_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    emoji_display_mode: Mapped[str] = mapped_column(String(16), default="random")
 
     # Шаблон текста, например: "{user} выебал(а) {target}"
     template: Mapped[str] = mapped_column(String(256))

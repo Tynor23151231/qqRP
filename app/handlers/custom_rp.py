@@ -146,6 +146,7 @@ async def my_rp_screen(
 class AddRPStates(StatesGroup):
     waiting_trigger = State()
     waiting_emoji = State()
+    waiting_emoji_mode = State()
     waiting_template = State()
     waiting_gif = State()
 
@@ -205,6 +206,40 @@ async def _prompt_emoji(message: Message, state: FSMContext, trigger: str, editi
     )
 
 
+async def _prompt_emoji_mode(message: Message, state: FSMContext, lang: str) -> None:
+    await state.set_state(AddRPStates.waiting_emoji_mode)
+    await message.answer(
+        L(
+            lang,
+            "🎲 Ты прислал несколько эмодзи — как их показывать при использовании действия?",
+            "🎲 You sent several emoji — how should they be shown when the action is used?",
+        ),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=L(lang, "🎲 Один случайный", "🎲 One at random"),
+                        callback_data="addrp:mode:random",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=L(lang, "✨ Все вместе", "✨ All together"),
+                        callback_data="addrp:mode:all",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=L(lang, "Назад", "Back"),
+                        callback_data="addrp:back",
+                        icon_custom_emoji_id=emoji("back")[1],
+                    )
+                ],
+            ]
+        ),
+    )
+
+
 async def _prompt_template(message: Message, state: FSMContext, trigger: str, lang: str) -> None:
     await state.set_state(AddRPStates.waiting_template)
     await message.answer(
@@ -249,6 +284,7 @@ async def _save_trigger(
         emojis=data["emojis"],
         template=data["template"],
         gif_file_id=gif_file_id,
+        emoji_display_mode=data.get("emoji_display_mode", "random"),
     )
     await state.clear()
 
@@ -534,6 +570,12 @@ async def cb_addrp_back(
     if current == AddRPStates.waiting_gif.state:
         await _prompt_template(callback.message, state, trigger, lang)
     elif current == AddRPStates.waiting_template.state:
+        emojis = data.get("emojis", [])
+        if len(emojis) > 1:
+            await _prompt_emoji_mode(callback.message, state, lang)
+        else:
+            await _prompt_emoji(callback.message, state, trigger, editing, lang)
+    elif current == AddRPStates.waiting_emoji_mode.state:
         await _prompt_emoji(callback.message, state, trigger, editing, lang)
     elif current == AddRPStates.waiting_emoji.state:
         if editing:
@@ -595,13 +637,25 @@ async def on_emoji_entered(message: Message, state: FSMContext, db_user: User) -
 
     data = await state.get_data()
     trigger = data["trigger"]
-    count_note = (
-        L(lang, f" (сохранил {len(emojis)} шт., один будет выбираться случайно)", f" (saved {len(emojis)}, one will be picked at random)")
-        if len(emojis) > 1
-        else ""
-    )
-    await message.answer(L(lang, f"Принято{count_note}.", f"Got it{count_note}."))
-    await _prompt_template(message, state, trigger, lang)
+
+    if len(emojis) > 1:
+        await message.answer(L(lang, f"Принято ({len(emojis)} шт.).", f"Got it ({len(emojis)})."))
+        await _prompt_emoji_mode(message, state, lang)
+    else:
+        await state.update_data(emoji_display_mode="random")
+        await message.answer(L(lang, "Принято.", "Got it."))
+        await _prompt_template(message, state, trigger, lang)
+
+
+@router.callback_query(F.data.startswith("addrp:mode:"))
+async def cb_addrp_emoji_mode(callback: CallbackQuery, state: FSMContext, db_user: User) -> None:
+    lang = db_user.language
+    mode = callback.data.split(":", 2)[2]  # "random" | "all"
+    await state.update_data(emoji_display_mode=mode)
+    await callback.answer()
+
+    data = await state.get_data()
+    await _prompt_template(callback.message, state, data["trigger"], lang)
 
 
 @router.message(AddRPStates.waiting_template, F.text)

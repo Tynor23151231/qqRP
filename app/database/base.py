@@ -42,6 +42,9 @@ async def _run_light_migrations() -> None:
             text("ALTER TABLE custom_triggers ADD COLUMN IF NOT EXISTS emojis_json TEXT")
         )
         await conn.execute(
+            text("ALTER TABLE custom_triggers ADD COLUMN IF NOT EXISTS emoji_display_mode VARCHAR(16) DEFAULT 'random'")
+        )
+        await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by_id BIGINT")
         )
         await conn.execute(

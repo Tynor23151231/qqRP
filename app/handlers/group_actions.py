@@ -43,6 +43,10 @@ async def _resolve_target(
         return target_user.id, name, uname
 
     if username:
+        known = await user_service.get_by_username(username)
+        if known is not None:
+            return known.telegram_id, known.display_name, known.username or username
+
         try:
             chat = await message.bot.get_chat(f"@{username}")
         except TelegramBadRequest:
@@ -64,6 +68,11 @@ async def _resolve_targets(
         user_service = UserService(session)
         resolved: list[tuple[int, str, str | None]] = []
         for uname in parsed.target_usernames:
+            known = await user_service.get_by_username(uname)
+            if known is not None:
+                resolved.append((known.telegram_id, known.display_name, known.username or uname))
+                continue
+
             try:
                 chat = await message.bot.get_chat(f"@{uname}")
             except TelegramBadRequest:

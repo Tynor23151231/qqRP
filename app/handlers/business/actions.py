@@ -56,7 +56,9 @@ async def _resolve_target(
     """
     Определяет цель действия по правилам ТЗ:
     1) ответ на сообщение -> автор этого сообщения;
-    2) указан @username -> резолвим через get_chat;
+    2) указан @username -> сначала ищем среди уже зарегистрированных в боте (надёжно),
+       и только если не нашли — пробуем get_chat (Telegram ненадёжно резолвит по
+       username обычных пользователей, даже если бот их технически "видит");
     3) иначе, в личном чате -> собеседник;
     4) иначе -> None (вызывающий код попросит выбрать пользователя).
     """
@@ -68,6 +70,11 @@ async def _resolve_target(
         return target_user.id, name, uname
 
     if username:
+        user_service = UserService(session)
+        known = await user_service.get_by_username(username)
+        if known is not None:
+            return known.telegram_id, known.display_name, known.username or username
+
         try:
             chat = await message.bot.get_chat(f"@{username}")
         except TelegramBadRequest:
@@ -93,8 +100,14 @@ async def _resolve_targets(
     Иначе — прежнее поведение через _resolve_target (reply/один @username/DM-собеседник).
     """
     if len(parsed.target_usernames) >= 2:
+        user_service = UserService(session)
         resolved: list[tuple[int, str, str | None]] = []
         for uname in parsed.target_usernames:
+            known = await user_service.get_by_username(uname)
+            if known is not None:
+                resolved.append((known.telegram_id, known.display_name, known.username or uname))
+                continue
+
             try:
                 chat = await message.bot.get_chat(f"@{uname}")
             except TelegramBadRequest:

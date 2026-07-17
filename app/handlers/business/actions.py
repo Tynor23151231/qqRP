@@ -182,8 +182,18 @@ async def _relay_to_qq_download_bot(message: Message, link: str) -> None:
     future = qq_download.register_waiter(connection_id)
 
     try:
+        qq_chat = await message.bot.get_chat(f"@{settings.qq_download_bot_username}")
+    except TelegramBadRequest as e:
+        logger.warning("Не удалось найти @%s: %s", settings.qq_download_bot_username, e)
+        qq_download.clear_waiter(connection_id)
+        await _send_business_message(
+            message, f"⚠️ Не нашёл бота @{settings.qq_download_bot_username}.", None
+        )
+        return
+
+    try:
         await message.bot.send_message(
-            chat_id=f"@{settings.qq_download_bot_username}",
+            chat_id=qq_chat.id,
             text=link,
             business_connection_id=connection_id,
         )

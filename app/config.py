@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     basic_premium_price_stars: int = 25
     basic_premium_max_custom_rp: int = 7
 
+    # Бот-загрузчик видео (TikTok/Pinterest), которому пересылается ссылка из .qq
+    qq_download_bot_username: str = "QQdownloadbot"
+    qq_download_timeout_seconds: int = 30
+
     # Обязательная подписка на канал перед использованием бота.
     # chat_id канала/супергруппы (с "-100" префиксом) и публичный username без "@".
     required_channel_id: int = -1003062068266

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from aiogram import Router
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.i18n import L
 from app.models import User
+from app.services import qq_download
 from app.services.action_service import ActionService
 from app.services.subscription_service import is_subscribed, subscription_required_payload
 from app.services.typing_effect import reveal_text
@@ -169,8 +171,79 @@ async def _delete_source_message(message: Message) -> None:
         )
 
 
+async def _relay_to_qq_download_bot(message: Message, link: str) -> None:
+    """
+    Отправляет ссылку боту-загрузчику (@QQdownloadbot) от лица владельца через
+    business_connection_id, ждёт его ответ до settings.qq_download_timeout_seconds,
+    и пересылает полученное сообщение обратно в исходный чат. Если новый ответ не
+    пришёл вовремя — пересылает последнее ранее полученное от него сообщение (если есть).
+    """
+    connection_id = message.business_connection_id
+    future = qq_download.register_waiter(connection_id)
+
+    try:
+        await message.bot.send_message(
+            chat_id=f"@{settings.qq_download_bot_username}",
+            text=link,
+            business_connection_id=connection_id,
+        )
+    except TelegramBadRequest as e:
+        logger.warning("Не удалось отправить ссылку в %s: %s", settings.qq_download_bot_username, e)
+        qq_download.clear_waiter(connection_id)
+        await _send_business_message(
+            message,
+            f"⚠️ Не получилось отправить ссылку в @{settings.qq_download_bot_username}.",
+            None,
+        )
+        return
+
+    reply_message: Message | None = None
+    timed_out = False
+    try:
+        reply_message = await asyncio.wait_for(future, timeout=settings.qq_download_timeout_seconds)
+    except asyncio.TimeoutError:
+        timed_out = True
+    finally:
+        qq_download.clear_waiter(connection_id)
+
+    if reply_message is None and timed_out:
+        reply_message = qq_download.get_last_message(connection_id)
+
+    if reply_message is None:
+        await _send_business_message(
+            message,
+            f"⚠️ @{settings.qq_download_bot_username} не ответил за "
+            f"{settings.qq_download_timeout_seconds} сек, и раньше сообщений от него тоже не было.",
+            None,
+        )
+        return
+
+    try:
+        await message.bot.copy_message(
+            chat_id=message.chat.id,
+            from_chat_id=reply_message.chat.id,
+            message_id=reply_message.message_id,
+            reply_markup=reply_message.reply_markup,
+            business_connection_id=connection_id,
+        )
+    except TelegramBadRequest as e:
+        logger.warning("Не удалось переслать ответ %s: %s", settings.qq_download_bot_username, e)
+        await _send_business_message(
+            message, f"⚠️ Получил ответ от @{settings.qq_download_bot_username}, но не смог его переслать.", None
+        )
+
+
 @router.business_message()
 async def handle_dot_command(message: Message, db_user: User, session: AsyncSession) -> None:
+    if (
+        message.business_connection_id is not None
+        and message.from_user is not None
+        and message.from_user.username == settings.qq_download_bot_username
+    ):
+        # Ответ от бота-загрузчика — не dot-команда, отдаём тому, кто ждёт (.qq), и выходим.
+        qq_download.resolve_waiter(message.business_connection_id, message)
+        return
+
     if not message.text:
         return
 
@@ -207,6 +280,26 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             message.bot, message.chat.id, typing_payload,
             business_connection_id=message.business_connection_id,
         )
+        return
+
+    qq_prefix = f"{settings.command_prefix}qq"
+    if message.text == qq_prefix or message.text.startswith(f"{qq_prefix} "):
+        if not await _is_from_connection_owner(message, session):
+            return
+        link = message.text[len(qq_prefix):].strip()
+        if not link:
+            await _send_business_message(
+                message,
+                L(
+                    db_user.language,
+                    f"Пришли ссылку после команды: {qq_prefix} <ссылка>",
+                    f"Send a link after the command: {qq_prefix} <link>",
+                ),
+                None,
+            )
+            return
+        await _delete_source_message(message)
+        await _relay_to_qq_download_bot(message, link)
         return
 
     parsed = parse_dot_command(message.text, prefix=settings.command_prefix)

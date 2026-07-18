@@ -126,6 +126,20 @@ class UserService:
         user.name_badge_enabled = enabled
         await self.session.commit()
 
+    async def set_qq_relay_chat(self, user: User, chat_id: int) -> None:
+        user.qq_relay_chat_id = chat_id
+        user.qq_relay_enabled = True
+        await self.session.commit()
+
+    async def set_qq_relay_enabled(self, user: User, enabled: bool) -> None:
+        user.qq_relay_enabled = enabled
+        await self.session.commit()
+
+    async def clear_qq_relay(self, user: User) -> None:
+        user.qq_relay_chat_id = None
+        user.qq_relay_enabled = False
+        await self.session.commit()
+
     async def set_custom_name(self, user: User, custom_name: str | None) -> None:
         user.custom_name = custom_name
         await self.session.commit()

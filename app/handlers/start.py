@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
-from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -353,9 +353,20 @@ async def cb_menu_commands(callback: CallbackQuery, db_user: User, session: Asyn
     lang = db_user.language
     action_service = ActionService(session)
     text, entities = _format_commands_list(action_service, lang)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=L(lang, "🔗 Включить поддержку ссылок", "🔗 Enable link support"),
+                    callback_data="menu:qqrelay",
+                )
+            ],
+            *back_only_keyboard(lang).inline_keyboard,
+        ]
+    )
     await callback.message.edit_text(
         text, entities=entities, parse_mode=None, link_preview_options=_NO_PREVIEW,
-        reply_markup=back_only_keyboard(lang),
+        reply_markup=keyboard,
     )
     await callback.answer()
 

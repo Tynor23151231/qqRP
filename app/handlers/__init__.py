@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from app.handlers import admin, custom_rp, group_actions, name_badge, premium, profile, referral, settings, start, stats
+from app.handlers import admin, custom_rp, group_actions, name_badge, premium, profile, qq_relay, referral, settings, start, stats
 from app.handlers.business import actions as business_actions
 from app.handlers.business import connection as business_connection
 
@@ -18,6 +18,7 @@ def get_root_router() -> Router:
     root.include_router(premium.router)
     root.include_router(referral.router)
     root.include_router(name_badge.router)
+    root.include_router(qq_relay.router)
     root.include_router(admin.router)
 
     # Обычные группы, где бот состоит участником

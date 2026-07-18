@@ -171,38 +171,50 @@ async def _delete_source_message(message: Message) -> None:
         )
 
 
-async def _relay_to_qq_download_bot(message: Message, link: str) -> None:
+async def _relay_to_qq_download_bot(message: Message, link: str, db_user: User) -> None:
     """
-    Отправляет ссылку боту-загрузчику (@QQdownloadbot) от лица владельца через
-    business_connection_id, ждёт его ответ до settings.qq_download_timeout_seconds,
-    и пересылает полученное сообщение обратно в исходный чат. Если новый ответ не
-    пришёл вовремя — пересылает последнее ранее полученное от него сообщение (если есть).
+    Отправляет ссылку боту-загрузчику (@QQdownloadbot) через служебную группу-релей
+    пользователя (Telegram не позволяет ботам писать другим ботам напрямую, поэтому
+    нужен посредник — обычная группа, куда добавлены оба бота), ждёт ответ до
+    settings.qq_download_timeout_seconds и пересылает его обратно в исходный чат.
+    Если новый ответ не пришёл вовремя — пересылает последнее ранее полученное
+    от него сообщение в этой группе (если есть).
     """
-    connection_id = message.business_connection_id
-    future = qq_download.register_waiter(connection_id)
-
-    try:
-        qq_chat = await message.bot.get_chat(f"@{settings.qq_download_bot_username}")
-    except TelegramBadRequest as e:
-        logger.warning("Не удалось найти @%s: %s", settings.qq_download_bot_username, e)
-        qq_download.clear_waiter(connection_id)
-        await _send_business_message(
-            message, f"⚠️ Не нашёл бота @{settings.qq_download_bot_username}.", None
+    lang = db_user.language
+    if not db_user.qq_relay_chat_id or not db_user.qq_relay_enabled:
+        b = EntityTextBuilder()
+        g, gid = emoji("lock")
+        b.add_custom_emoji(g, gid)
+        b.add_text(
+            L(
+                lang,
+                " Сначала настрой поддержку ссылок: Меню → Список команд → "
+                "«🔗 Включить поддержку ссылок» (там пошаговая инструкция).",
+                " First set up link support: Menu → Commands list → "
+                "\"🔗 Enable link support\" (step-by-step guide there).",
+            )
         )
+        text, entities = b.build()
+        await _send_business_message(message, text, entities)
         return
 
+    relay_key = str(db_user.qq_relay_chat_id)
+    future = qq_download.register_waiter(relay_key)
+
     try:
-        await message.bot.send_message(
-            chat_id=qq_chat.id,
-            text=link,
-            business_connection_id=connection_id,
-        )
+        await message.bot.send_message(chat_id=db_user.qq_relay_chat_id, text=link)
     except TelegramBadRequest as e:
-        logger.warning("Не удалось отправить ссылку в %s: %s", settings.qq_download_bot_username, e)
-        qq_download.clear_waiter(connection_id)
+        logger.warning("Не удалось отправить ссылку в группу-релей %s: %s", db_user.qq_relay_chat_id, e)
+        qq_download.clear_waiter(relay_key)
         await _send_business_message(
             message,
-            f"⚠️ Не получилось отправить ссылку в @{settings.qq_download_bot_username}.",
+            L(
+                lang,
+                "⚠️ Не получилось отправить ссылку в служебную группу. Проверь, что бот всё ещё "
+                "состоит в ней (Меню → Список команд → «🔗 Включить поддержку ссылок»).",
+                "⚠️ Couldn't send the link to the relay group. Check that the bot is still a "
+                "member (Menu → Commands list → \"🔗 Enable link support\").",
+            ),
             None,
         )
         return
@@ -214,16 +226,21 @@ async def _relay_to_qq_download_bot(message: Message, link: str) -> None:
     except asyncio.TimeoutError:
         timed_out = True
     finally:
-        qq_download.clear_waiter(connection_id)
+        qq_download.clear_waiter(relay_key)
 
     if reply_message is None and timed_out:
-        reply_message = qq_download.get_last_message(connection_id)
+        reply_message = qq_download.get_last_message(relay_key)
 
     if reply_message is None:
         await _send_business_message(
             message,
-            f"⚠️ @{settings.qq_download_bot_username} не ответил за "
-            f"{settings.qq_download_timeout_seconds} сек, и раньше сообщений от него тоже не было.",
+            L(
+                lang,
+                f"⚠️ @{settings.qq_download_bot_username} не ответил за "
+                f"{settings.qq_download_timeout_seconds} сек, и раньше сообщений от него тоже не было.",
+                f"⚠️ @{settings.qq_download_bot_username} didn't reply within "
+                f"{settings.qq_download_timeout_seconds}s, and there's no earlier message from it either.",
+            ),
             None,
         )
         return
@@ -234,12 +251,18 @@ async def _relay_to_qq_download_bot(message: Message, link: str) -> None:
             from_chat_id=reply_message.chat.id,
             message_id=reply_message.message_id,
             reply_markup=reply_message.reply_markup,
-            business_connection_id=connection_id,
+            business_connection_id=message.business_connection_id,
         )
     except TelegramBadRequest as e:
         logger.warning("Не удалось переслать ответ %s: %s", settings.qq_download_bot_username, e)
         await _send_business_message(
-            message, f"⚠️ Получил ответ от @{settings.qq_download_bot_username}, но не смог его переслать.", None
+            message,
+            L(
+                lang,
+                f"⚠️ Получил ответ от @{settings.qq_download_bot_username}, но не смог его переслать.",
+                f"⚠️ Got a reply from @{settings.qq_download_bot_username}, but couldn't forward it.",
+            ),
+            None,
         )
 
 
@@ -309,7 +332,7 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
             )
             return
         await _delete_source_message(message)
-        await _relay_to_qq_download_bot(message, link)
+        await _relay_to_qq_download_bot(message, link, db_user)
         return
 
     parsed = parse_dot_command(message.text, prefix=settings.command_prefix)

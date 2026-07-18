@@ -11,6 +11,7 @@ from app.keyboards.menu import back_to_menu_row
 from app.models import User
 from app.services.user_service import UserService
 from app.utils.entity_builder import EntityTextBuilder
+from app.utils.premium_emoji import emoji
 
 router = Router(name="qq_relay")
 
@@ -21,14 +22,21 @@ def _status_keyboard(lang: str, *, configured: bool, enabled: bool) -> InlineKey
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=L(lang, "🚫 Отключить", "🚫 Turn off") if enabled else L(lang, "✅ Включить", "✅ Turn on"),
+                    text=L(lang, "Отключить", "Turn off") if enabled else L(lang, "Включить", "Turn on"),
                     callback_data="qqrelay:toggle",
                     style="danger" if enabled else "success",
+                    icon_custom_emoji_id=emoji("disable")[1] if enabled else emoji("confirm")[1],
                 )
             ]
         )
         rows.append(
-            [InlineKeyboardButton(text=L(lang, "🗑 Сбросить группу", "🗑 Reset group"), callback_data="qqrelay:reset")]
+            [
+                InlineKeyboardButton(
+                    text=L(lang, "Сбросить группу", "Reset group"),
+                    callback_data="qqrelay:reset",
+                    icon_custom_emoji_id=emoji("trash")[1],
+                )
+            ]
         )
     rows.append(back_to_menu_row(lang))
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -40,7 +48,10 @@ def qq_relay_screen(db_user: User) -> tuple[str, list, InlineKeyboardMarkup]:
     enabled = configured and db_user.qq_relay_enabled
 
     b = EntityTextBuilder()
-    b.add_bold(L(lang, "🔗 Поддержка ссылок (.qq)", "🔗 Link support (.qq)"))
+    g, gid = emoji("link")
+    b.add_custom_emoji(g, gid)
+    b.add_text(" ")
+    b.add_bold(L(lang, f"Поддержка ссылок ({settings.command_prefix}qq)", f"Link support ({settings.command_prefix}qq)"))
     b.add_text(
         L(
             lang,
@@ -56,29 +67,49 @@ def qq_relay_screen(db_user: User) -> tuple[str, list, InlineKeyboardMarkup]:
     )
 
     b.add_bold(L(lang, "Как настроить:", "How to set up:"))
+    b.add_text("\n")
+
+    b.add_custom_emoji(*emoji("step1"))
     b.add_text(
         L(
             lang,
-            "\n1️⃣ Создай новую приватную группу (можно назвать как угодно)\n"
-            "2️⃣ Добавь в неё этого бота — через «Добавить в группу» из его профиля\n"
-            f"3️⃣ Добавь туда же @{settings.qq_download_bot_username}\n"
-            f"4️⃣ У @{settings.qq_download_bot_username} отключи Privacy Mode: напиши @BotFather → "
-            "/mybots → выбери бота → Bot Settings → Group Privacy → Turn off "
-            "(без этого он не увидит ссылки от другого бота в группе)\n"
-            f"5️⃣ Напиши в этой группе команду {settings.command_prefix}chatid — бот пришлёт "
-            "id группы с кнопкой подтверждения\n"
-            "6️⃣ Нажми «Использовать эту группу» — готово, можно пользоваться "
-            f"{settings.command_prefix}qq из любого чата",
-            "\n1️⃣ Create a new private group (any name works)\n"
-            "2️⃣ Add this bot to it — usually easiest via \"Add to Group\" from its profile\n"
-            f"3️⃣ Add @{settings.qq_download_bot_username} to the same group\n"
-            f"4️⃣ Turn off Privacy Mode for @{settings.qq_download_bot_username}: message @BotFather → "
-            "/mybots → pick the bot → Bot Settings → Group Privacy → Turn off "
-            "(otherwise it won't see links from another bot in the group)\n"
-            f"5️⃣ In that group, send the command {settings.command_prefix}chatid — the bot will "
-            "reply with the group's id and a confirm button\n"
-            "6️⃣ Tap \"Use this group\" — done, you can now use "
-            f"{settings.command_prefix}qq from any chat",
+            " Создай новую приватную группу (можно назвать как угодно)\n",
+            " Create a new private group (any name works)\n",
+        )
+    )
+    b.add_custom_emoji(*emoji("step2"))
+    b.add_text(
+        L(
+            lang,
+            " Добавь в неё @qq_rpbot — через «Добавить в группу» из его профиля\n",
+            " Add @qq_rpbot to it — usually easiest via \"Add to Group\" from its profile\n",
+        )
+    )
+    b.add_custom_emoji(*emoji("step3"))
+    b.add_text(
+        L(
+            lang,
+            f" Добавь туда же @{settings.qq_download_bot_username}\n",
+            f" Add @{settings.qq_download_bot_username} to the same group\n",
+        )
+    )
+    b.add_custom_emoji(*emoji("step4"))
+    b.add_text(
+        L(
+            lang,
+            f" Напиши в этой группе команду /chatid — бот пришлёт id группы с кнопкой "
+            "подтверждения\n",
+            " In that group, send the command /chatid — the bot will reply with the group's "
+            "id and a confirm button\n",
+        )
+    )
+    b.add_custom_emoji(*emoji("step5"))
+    b.add_text(
+        L(
+            lang,
+            f" Нажми «Использовать эту группу» — готово, можно пользоваться {settings.command_prefix}qq "
+            "из любого чата",
+            f" Tap \"Use this group\" — done, you can now use {settings.command_prefix}qq from any chat",
         )
     )
 
@@ -86,7 +117,8 @@ def qq_relay_screen(db_user: User) -> tuple[str, list, InlineKeyboardMarkup]:
     if not configured:
         b.add_text(L(lang, "не настроено", "not set up"))
     elif enabled:
-        b.add_text(L(lang, "✅ активировано", "✅ active"))
+        b.add_custom_emoji(*emoji("confirm"))
+        b.add_text(L(lang, " активировано", " active"))
     else:
         b.add_text(L(lang, "⏸ настроено, но отключено", "⏸ set up, but turned off"))
 
@@ -123,16 +155,17 @@ async def cb_qq_relay_reset(callback: CallbackQuery, db_user: User, session: Asy
 
 
 @router.message(Command("chatid"))
-async def cmd_chat_id(message: Message, db_user: User) -> None:
+async def send_chatid_reply(message: Message, db_user: User) -> None:
+    """Общая логика для /chatid и .chatid — отдельная функция, чтобы вызывать из обоих мест."""
     lang = db_user.language
     if message.chat.type not in ("group", "supergroup"):
         await message.answer(
             L(
                 lang,
                 f"Эта команда для группы: напиши {settings.command_prefix}chatid внутри "
-                "своей служебной группы для .qq.",
+                f"своей служебной группы для {settings.command_prefix}qq.",
                 f"This command is for groups: send {settings.command_prefix}chatid inside "
-                "your .qq relay group.",
+                f"your {settings.command_prefix}qq relay group.",
             )
         )
         return
@@ -141,18 +174,19 @@ async def cmd_chat_id(message: Message, db_user: User) -> None:
         L(
             lang,
             f"🆔 id этой группы: <code>{message.chat.id}</code>\n\nЕсли это твоя группа-посредник "
-            f"для .qq (внутри уже добавлен @{settings.qq_download_bot_username} с выключенным "
-            "Privacy Mode) — нажми кнопку ниже.",
-            f"🆔 This group's id: <code>{message.chat.id}</code>\n\nIf this is your .qq relay group "
-            f"(with @{settings.qq_download_bot_username} already added and Privacy Mode off) — "
-            "tap the button below.",
+            f"для {settings.command_prefix}qq (внутри уже добавлен "
+            f"@{settings.qq_download_bot_username}) — нажми кнопку ниже.",
+            f"🆔 This group's id: <code>{message.chat.id}</code>\n\nIf this is your "
+            f"{settings.command_prefix}qq relay group (with @{settings.qq_download_bot_username} "
+            "already added) — tap the button below.",
         ),
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text=L(lang, "✅ Использовать эту группу", "✅ Use this group"),
+                        text=L(lang, "Использовать эту группу", "Use this group"),
                         callback_data=f"qqrelay:use:{message.chat.id}",
+                        icon_custom_emoji_id=emoji("confirm")[1],
                     )
                 ]
             ]

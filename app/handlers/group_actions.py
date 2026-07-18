@@ -239,6 +239,13 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         await _relay_to_qq_download_bot(message, link, db_user)
         return
 
+    chatid_prefix = f"{settings.command_prefix}chatid"
+    if message.text == chatid_prefix:
+        from app.handlers.qq_relay import send_chatid_reply  # локальный импорт во избежание циклов
+
+        await send_chatid_reply(message, db_user)
+        return
+
     parsed = parse_dot_command(message.text, prefix=settings.command_prefix)
     if parsed is None:
         return  # обычное сообщение, не RP-команда

@@ -161,12 +161,7 @@ async def _relay_to_qq_download_bot(message: Message, link: str, db_user: User) 
         return
 
     try:
-        await message.bot.copy_message(
-            chat_id=message.chat.id,
-            from_chat_id=reply_message.chat.id,
-            message_id=reply_message.message_id,
-            reply_markup=reply_message.reply_markup,
-        )
+        await qq_download.resend_message(message.bot, message.chat.id, reply_message)
     except TelegramBadRequest as e:
         logger.warning("Не удалось переслать ответ %s: %s", settings.qq_download_bot_username, e)
         await message.reply(

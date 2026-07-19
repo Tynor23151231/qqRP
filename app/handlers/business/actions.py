@@ -171,50 +171,6 @@ async def _delete_source_message(message: Message) -> None:
         )
 
 
-async def _resend_message_via_business(bot, chat_id: int, business_connection_id: str, source: Message) -> None:
-    """
-    Пересылка/копирование сообщений через business_connection_id запрещена Bot API
-    ("can't forward messages as business"), поэтому пересобираем сообщение заново
-    нужным send-методом (он поддерживает business_connection_id нативно) с тем же
-    file_id — для Telegram это просто новая отправка, а не копия/форвард.
-    """
-    kwargs = dict(chat_id=chat_id, business_connection_id=business_connection_id, reply_markup=source.reply_markup)
-
-    if source.text is not None:
-        await bot.send_message(text=source.text, entities=source.entities, **kwargs)
-    elif source.photo:
-        await bot.send_photo(
-            photo=source.photo[-1].file_id, caption=source.caption, caption_entities=source.caption_entities, **kwargs
-        )
-    elif source.video:
-        await bot.send_video(
-            video=source.video.file_id, caption=source.caption, caption_entities=source.caption_entities, **kwargs
-        )
-    elif source.animation:
-        await bot.send_animation(
-            animation=source.animation.file_id, caption=source.caption, caption_entities=source.caption_entities, **kwargs
-        )
-    elif source.document:
-        await bot.send_document(
-            document=source.document.file_id, caption=source.caption, caption_entities=source.caption_entities, **kwargs
-        )
-    elif source.audio:
-        await bot.send_audio(
-            audio=source.audio.file_id, caption=source.caption, caption_entities=source.caption_entities, **kwargs
-        )
-    elif source.voice:
-        await bot.send_voice(
-            voice=source.voice.file_id, caption=source.caption, caption_entities=source.caption_entities, **kwargs
-        )
-    elif source.video_note:
-        kwargs.pop("reply_markup", None)
-        await bot.send_video_note(video_note=source.video_note.file_id, **kwargs)
-    else:
-        # Неизвестный/неподдерживаемый тип — на крайний случай подпись/текст, если есть.
-        if source.caption:
-            await bot.send_message(text=source.caption, entities=source.caption_entities, **kwargs)
-
-
 async def _relay_to_qq_download_bot(message: Message, link: str, db_user: User) -> None:
     """
     Отправляет ссылку боту-загрузчику (@QQdownloadbot) через служебную группу-релей
@@ -290,8 +246,8 @@ async def _relay_to_qq_download_bot(message: Message, link: str, db_user: User) 
         return
 
     try:
-        await _resend_message_via_business(
-            message.bot, message.chat.id, message.business_connection_id, reply_message
+        await qq_download.resend_message(
+            message.bot, message.chat.id, reply_message, business_connection_id=message.business_connection_id
         )
     except TelegramBadRequest as e:
         logger.warning("Не удалось переслать ответ %s: %s", settings.qq_download_bot_username, e)

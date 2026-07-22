@@ -13,6 +13,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import CustomTrigger, Gender, User
 from app.utils.entity_builder import EntityTextBuilder
 
+# Грубая, но практичная проверка "это похоже на настоящее эмодзи (в т.ч. составное:
+# ZWJ-последовательности семей/пар, флаги-регионы, keycap-цифры, skin-tone)".
+# В отличие от проверки по длине (utf16_len <= 2) — не бракует валидные составные
+# эмодзи (они легко занимают 4-8 UTF-16 code units) и при этом отсекает короткие
+# огрызки постороннего текста, случайно утащенные старым багом нарезки без
+# utf16_slice (см. _sanitize_emoji_pair).
+_EMOJI_SEGMENT_RE = re.compile(
+    "(?:"
+    "[\U0001F1E6-\U0001F1FF]"   # regional indicators (флаги)
+    "|[\U0001F300-\U0001FAFF]" # эмодзи/emoticons/transport/supplemental symbols
+    "|[\u2600-\u27BF]"          # misc symbols, dingbats (☀️ ✂️ ❤️ ...)
+    "|[\u2B00-\u2BFF]"          # misc symbols and arrows (⭐️ ...)
+    "|[\u2190-\u21FF]"          # стрелки (↔️ ...)
+    "|[\u2300-\u23FF]"          # misc technical (⌚️ ⏰ ...)
+    "|[0-9#*]\uFE0F?\u20E3"     # keycap-последовательности (0️⃣-9️⃣, #️⃣, *️⃣)
+    "|\uFE0F"                   # variation selector-16
+    "|\u200D"                   # ZWJ, склеивает составные эмодзи
+    ")+"
+)
+
+
+def _looks_like_emoji(text: str) -> bool:
+    return bool(text) and bool(_EMOJI_SEGMENT_RE.fullmatch(text))
+
 _ACTIONS_PATH = Path(__file__).resolve().parent.parent / "data" / "actions.json"
 _TOKEN_RE = re.compile(r"\{(user|target|verb)\}")
 
@@ -358,14 +382,30 @@ class ActionService:
 
         return None
 
+    @staticmethod
+    def _sanitize_emoji_pair(emoji_glyph: str, custom_emoji_id: str | None) -> tuple[str, str | None]:
+        """
+        Валидный custom_emoji entity в Telegram должен указывать на настоящее эмодзи.
+        Записи, сохранённые до фикса с utf16_slice, могли содержать огрызок постороннего
+        текста вместо эмодзи (например одну букву из названия триггера) — с ним Telegram
+        отвечает ENTITY_TEXT_INVALID и крашит весь экран "Своё RP". Если плейсхолдер не
+        похож на эмодзи — просто убираем id (эмодзи покажется как есть, без премиум-рендера,
+        но экран не упадёт).
+        """
+        if custom_emoji_id and not _looks_like_emoji(emoji_glyph):
+            return emoji_glyph, None
+        return emoji_glyph, custom_emoji_id
+
     def _custom_trigger_emojis(self, custom: CustomTrigger) -> list[tuple[str, str | None]]:
         """Читает набор эмодзи пользовательского триггера (JSON), с fallback на старые записи."""
         if custom.emojis_json:
             try:
                 items = json.loads(custom.emojis_json)
-                candidates = [(item["emoji"], item.get("id")) for item in items]
+                candidates = [
+                    self._sanitize_emoji_pair(item["emoji"], item.get("id")) for item in items
+                ]
                 if candidates:
                     return candidates
             except (ValueError, KeyError, TypeError):
                 pass
-        return [(custom.emoji, custom.custom_emoji_id)]
+        return [self._sanitize_emoji_pair(custom.emoji, custom.custom_emoji_id)]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Message
+from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -128,6 +128,17 @@ def _format_commands_list(action_service: ActionService, lang: str) -> tuple[str
             lang,
             f"\n➕ Плюс можно создать свои действия через {settings.command_prefix}addrp (премиум).",
             f"\n➕ You can also create your own actions via {settings.command_prefix}addrp (premium).",
+        )
+    )
+    b.add_text(
+        L(
+            lang,
+            f"\n\n🎬 Хочешь скачать видео из TikTok/Pinterest прямо в чат? Просто напиши в любом "
+            f"чате @{settings.qq_download_bot_username} <ссылка> — Telegram покажет инлайн-результат, "
+            "тапни по нему и он отправится в этот же чат.",
+            f"\n\n🎬 Want to download a TikTok/Pinterest video right in the chat? Just type "
+            f"@{settings.qq_download_bot_username} <link> in any chat — Telegram will show an inline "
+            "result, tap it and it's sent right there.",
         )
     )
     return b.build()
@@ -353,20 +364,9 @@ async def cb_menu_commands(callback: CallbackQuery, db_user: User, session: Asyn
     lang = db_user.language
     action_service = ActionService(session)
     text, entities = _format_commands_list(action_service, lang)
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=L(lang, "🔗 Включить поддержку ссылок", "🔗 Enable link support"),
-                    callback_data="menu:qqrelay",
-                )
-            ],
-            *back_only_keyboard(lang).inline_keyboard,
-        ]
-    )
     await callback.message.edit_text(
         text, entities=entities, parse_mode=None, link_preview_options=_NO_PREVIEW,
-        reply_markup=keyboard,
+        reply_markup=back_only_keyboard(lang),
     )
     await callback.answer()
 

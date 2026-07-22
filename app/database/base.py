@@ -69,12 +69,6 @@ async def _run_light_migrations() -> None:
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_reward_claimed BOOLEAN DEFAULT FALSE")
         )
         await conn.execute(
-            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS qq_relay_chat_id BIGINT")
-        )
-        await conn.execute(
-            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS qq_relay_enabled BOOLEAN DEFAULT FALSE")
-        )
-        await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS name_badge_enabled BOOLEAN DEFAULT FALSE")
         )
         await conn.execute(

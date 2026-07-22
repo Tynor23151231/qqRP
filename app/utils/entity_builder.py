@@ -14,6 +14,18 @@ def utf16_len(text: str) -> int:
     return len(text.encode("utf-16-le")) // 2
 
 
+def utf16_slice(text: str, offset: int, length: int) -> str:
+    """
+    Достаёт подстроку по offset/length из MessageEntity, которые считаются в
+    UTF-16 code units. Обычная питоновская срезка text[offset:offset+length]
+    ломается на 2+ эмодзи подряд: большинство эмодзи (в т.ч. премиум-плейсхолдеры)
+    лежат вне BMP и в UTF-16 занимают 2 code unit, а в Python-строке — 1 символ,
+    поэтому offset второго и следующих эмодзи "уезжает" без этой перекодировки.
+    """
+    raw = text.encode("utf-16-le")
+    return raw[offset * 2:(offset + length) * 2].decode("utf-16-le")
+
+
 @dataclass
 class EntityTextBuilder:
     """

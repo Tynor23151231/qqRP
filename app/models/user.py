@@ -54,12 +54,6 @@ class User(Base):
     business_connected_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     weekly_reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Своя служебная группа для .qq (ссылка -> QQdownloadbot -> ответ обратно).
-    # Business API не даёт слать сообщения ботам, поэтому пересылка идёт через
-    # обычную группу, куда добавлены и наш бот, и QQdownloadbot.
-    qq_relay_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    qq_relay_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
-
     # Значок в фамилии (премиум): через Business API дописывает к настоящей фамилии
     # владельца декоративный суффикс. Храним оригинал имени/фамилии на момент подключения,
     # чтобы корректно восстановить при отключении, и право can_edit_name из rights

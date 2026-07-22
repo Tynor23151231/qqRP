@@ -27,7 +27,6 @@ class Settings(BaseSettings):
 
     # Бот-загрузчик видео (TikTok/Pinterest), которому пересылается ссылка из .qq
     qq_download_bot_username: str = "QQdownloadbot"
-    qq_download_timeout_seconds: int = 30
 
     # Обязательная подписка на канал перед использованием бота.
     # chat_id канала/супергруппы (с "-100" префиксом) и публичный username без "@".

@@ -13,7 +13,7 @@ from app.keyboards.menu import back_to_menu_row
 from app.models import CustomTrigger, User
 from app.services.action_service import ActionService
 from app.services.subscription_service import is_subscribed, subscription_required_payload
-from app.utils.entity_builder import EntityTextBuilder
+from app.utils.entity_builder import EntityTextBuilder, utf16_slice
 from app.utils.premium_emoji import emoji
 
 router = Router(name="custom_rp")
@@ -620,7 +620,7 @@ async def on_emoji_entered(message: Message, state: FSMContext, db_user: User) -
     if message.entities:
         for entity in message.entities:
             if entity.type == "custom_emoji":
-                placeholder = message.text[entity.offset:entity.offset + entity.length]
+                placeholder = utf16_slice(message.text, entity.offset, entity.length)
                 emojis.append((placeholder, entity.custom_emoji_id))
 
     if not emojis and message.text:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -387,9 +388,19 @@ async def cb_menu_addrp(callback: CallbackQuery, db_user: User, session: AsyncSe
     from app.handlers.custom_rp import my_rp_screen  # локальный импорт во избежание циклов
 
     text, entities, keyboard = await my_rp_screen(db_user, session)
-    await callback.message.edit_text(
-        text, entities=entities, parse_mode=None, link_preview_options=_NO_PREVIEW, reply_markup=keyboard
-    )
+    try:
+        await callback.message.edit_text(
+            text, entities=entities, parse_mode=None, link_preview_options=_NO_PREVIEW, reply_markup=keyboard
+        )
+    except TelegramBadRequest as exc:
+        if "ENTITY_TEXT_INVALID" not in str(exc):
+            raise
+        # Подстраховка: если в базе всплывёт ещё какая-то не предусмотренная битая
+        # запись эмодзи, экран не должен падать — отдаём тот же текст без entities
+        # (сами эмодзи останутся видны как обычные символы, просто без premium-рендера).
+        await callback.message.edit_text(
+            text, parse_mode=None, link_preview_options=_NO_PREVIEW, reply_markup=keyboard
+        )
     await callback.answer()
 
 

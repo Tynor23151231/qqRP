@@ -38,6 +38,12 @@ def main_menu_keyboard(user: User) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text=L(lang, "🔘 Кнопки", "🔘 Buttons"),
+                    callback_data="menu:buttons",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
                     text=premium_label,
                     callback_data="menu:premium",
                     icon_custom_emoji_id=emoji("premium")[1],

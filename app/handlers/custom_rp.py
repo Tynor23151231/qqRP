@@ -410,7 +410,6 @@ async def cb_share_cancel(callback: CallbackQuery, db_user: User) -> None:
     await callback.message.edit_text(L(db_user.language, "Окей, не забираем.", "Okay, not grabbing it."))
 
 
-@router.message(Command("addrp"))
 async def _limit_reached_payload(db_user: User, session: AsyncSession) -> tuple[str, list] | None:
     """Если у пользователя базовый тариф и лимit своих RP исчерпан — возвращает текст отказа."""
     limit = db_user.custom_rp_limit
@@ -441,6 +440,29 @@ async def _limit_reached_payload(db_user: User, session: AsyncSession) -> tuple[
     return b.build()
 
 
+def _remaining_slots_note(db_user: User, current: int, lang: str) -> tuple[str, list] | None:
+    """
+    Короткая подсказка "осталось X из Y", которую показываем перед созданием нового RP —
+    чтобы было видно, сколько слотов ещё доступно, а не только когда лимит уже исчерпан.
+    Для Премиум+ (limit is None) ничего не показываем — там безлимит.
+    """
+    limit = db_user.custom_rp_limit
+    if limit is None:
+        return None
+
+    remaining = max(limit - current, 0)
+    b = EntityTextBuilder()
+    b.add_text(
+        L(
+            lang,
+            f"Своих RP: {current}/{limit} (осталось {remaining}).",
+            f"Custom RP: {current}/{limit} ({remaining} left).",
+        )
+    )
+    return b.build()
+
+
+@router.message(Command("addrp"))
 async def cmd_add_rp(message: Message, state: FSMContext, db_user: User, session: AsyncSession) -> None:
     lang = db_user.language
     if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
@@ -458,6 +480,13 @@ async def cmd_add_rp(message: Message, state: FSMContext, db_user: User, session
         text, entities = limit_payload
         await message.answer(text, entities=entities, parse_mode=None)
         return
+
+    action_service = ActionService(session)
+    current = len(await action_service.list_custom_triggers(db_user.id))
+    note = _remaining_slots_note(db_user, current, lang)
+    if note is not None:
+        text, entities = note
+        await message.answer(text, entities=entities, parse_mode=None)
 
     await state.update_data(editing=False)
     await _prompt_trigger(message, state, lang)
@@ -481,6 +510,13 @@ async def cb_myrp_new(callback: CallbackQuery, state: FSMContext, db_user: User,
         await callback.answer()
         await callback.message.answer(text, entities=entities, parse_mode=None)
         return
+
+    action_service = ActionService(session)
+    current = len(await action_service.list_custom_triggers(db_user.id))
+    note = _remaining_slots_note(db_user, current, lang)
+    if note is not None:
+        text, entities = note
+        await callback.message.answer(text, entities=entities, parse_mode=None)
 
     await callback.answer()
     await state.update_data(editing=False)

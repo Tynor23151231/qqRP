@@ -1,23 +1,26 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import LinkPreviewOptions, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.i18n import L
-from app.models import User
+from app.models import InlineButtonAlert, User
 from app.services.action_service import ActionService
+from app.services.button_flow_service import ButtonFlowService
+from app.services.inline_button_alert_service import register_alert
 from app.services.subscription_service import is_subscribed, subscription_required_payload
 from app.services.typing_effect import reveal_text
 from app.services.user_service import UserService
 from app.utils.entity_builder import EntityTextBuilder
 from app.utils.premium_emoji import emoji
-from app.utils.text_parsing import parse_dot_command, parse_typing_command
+from app.utils.text_parsing import is_button_url, parse_btn_command, parse_dot_command, parse_typing_command
+
+_BTN_ALERT_CALLBACK_PREFIX = "btnalert:"
 
 logger = logging.getLogger(__name__)
 router = Router(name="business_actions")
@@ -210,6 +213,36 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         )
         return
 
+    btn_payload = parse_btn_command(message.text, prefix=settings.command_prefix)
+    if btn_payload is not None:
+        if not await _is_from_connection_owner(message, session):
+            return
+        if not await is_subscribed(message.bot, message.from_user.id, message.from_user.username):
+            text, entities = subscription_required_payload(db_user.language)
+            await _send_business_message(message, text, entities)
+            return
+
+        if is_button_url(btn_payload.payload):
+            button = InlineKeyboardButton(text=btn_payload.label, url=btn_payload.payload)
+        else:
+            alert_id = await register_alert(
+                session, db_user.id, message.business_connection_id, btn_payload.payload
+            )
+            button = InlineKeyboardButton(
+                text=btn_payload.label,
+                callback_data=f"{_BTN_ALERT_CALLBACK_PREFIX}{alert_id}",
+            )
+
+        markup = InlineKeyboardMarkup(inline_keyboard=[[button]])
+        await _delete_source_message(message)
+        await message.bot.send_message(
+            chat_id=message.chat.id,
+            text=btn_payload.label,
+            reply_markup=markup,
+            business_connection_id=message.business_connection_id,
+        )
+        return
+
     parsed = parse_dot_command(message.text, prefix=settings.command_prefix)
     if parsed is None:
         return  # обычное сообщение, не RP-команда
@@ -257,6 +290,27 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
         await _send_business_message(message, text, entities)
         return
 
+    flow_service = ButtonFlowService(session)
+    flow = await flow_service.get_by_trigger(db_user.id, parsed.action_key)
+    if flow is not None:
+        from app.handlers.button_flows import render_screen  # локальный импорт во избежание циклов
+
+        targets = await _resolve_targets(message, parsed, session, db_user.language)
+        target_name = targets[0][1] if targets else ""
+        first_screen = flow.screens[0]
+        screen_text = first_screen["text"].replace("{target}", target_name)
+        text, markup = await render_screen(
+            session, db_user.id, message.business_connection_id, flow.id, 0, screen_text, first_screen["buttons"]
+        )
+        await _delete_source_message(message)
+        await message.bot.send_message(
+            chat_id=message.chat.id,
+            text=text,
+            reply_markup=markup,
+            business_connection_id=message.business_connection_id,
+        )
+        return
+
     targets = await _resolve_targets(message, parsed, session, db_user.language)
     if not targets:
         if parsed.target_username:
@@ -293,3 +347,21 @@ async def handle_dot_command(message: Message, db_user: User, session: AsyncSess
     user_service = UserService(session)
     for target_id, _, _ in targets:
         await user_service.register_action_usage(db_user, parsed.action_key, target_id)
+
+
+@router.callback_query(F.data.startswith(_BTN_ALERT_CALLBACK_PREFIX))
+async def handle_btn_alert_press(callback: CallbackQuery, db_user: User, session: AsyncSession) -> None:
+    """Нажатие на alert-кнопку, созданную .btn — показывает сохранённый текст всплывающим окном."""
+    raw_id = callback.data[len(_BTN_ALERT_CALLBACK_PREFIX):]
+    alert: InlineButtonAlert | None = None
+    if raw_id.isdigit():
+        alert = await session.get(InlineButtonAlert, int(raw_id))
+
+    if alert is None:
+        await callback.answer(
+            L(db_user.language, "Эта кнопка больше не активна.", "This button is no longer active."),
+            show_alert=True,
+        )
+        return
+
+    await callback.answer(alert.text, show_alert=True)

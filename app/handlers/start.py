@@ -177,6 +177,15 @@ async def cmd_start(message: Message, db_user: User, session: AsyncSession, comm
             await message.answer(text, entities=entities, parse_mode=None, reply_markup=keyboard)
             return
 
+    if command.args and command.args.startswith("bf_") and command.args[3:].isdigit():
+        from app.handlers.button_flows import shared_flow_preview  # локальный импорт во избежание циклов
+
+        preview = await shared_flow_preview(int(command.args[3:]), db_user, session)
+        if preview is not None:
+            text, keyboard = preview
+            await message.answer(text, parse_mode="HTML", reply_markup=keyboard)
+            return
+
     if not db_user.is_configured and command.args and command.args.isdigit():
         referrer_id = int(command.args)
         service = UserService(session)

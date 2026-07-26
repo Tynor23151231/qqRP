@@ -310,12 +310,12 @@ async def _save_trigger(
 
 
 async def shared_rp_preview(
-    trigger_id: int, db_user: User, session: AsyncSession
+    share_code: str, db_user: User, session: AsyncSession
 ) -> tuple[str, list, InlineKeyboardMarkup] | None:
     """Готовит превью полученного по ссылке действия + кнопки Забрать/Отмена."""
     lang = db_user.language
     action_service = ActionService(session)
-    shared = await action_service.get_custom_trigger_by_id(trigger_id)
+    shared = await action_service.get_custom_trigger_by_share_code(share_code)
     if shared is None:
         return None
 
@@ -360,7 +360,7 @@ async def shared_rp_preview(
             [
                 InlineKeyboardButton(
                     text=L(lang, "Забрать себе", "Grab it"),
-                    callback_data=f"share:import:{trigger_id}",
+                    callback_data=f"share:import:{share_code}",
                     icon_custom_emoji_id=emoji("confirm")[1],
                 ),
                 InlineKeyboardButton(
@@ -377,9 +377,9 @@ async def shared_rp_preview(
 @router.callback_query(F.data.startswith("share:import:"))
 async def cb_share_import(callback: CallbackQuery, db_user: User, session: AsyncSession) -> None:
     lang = db_user.language
-    trigger_id = int(callback.data.split(":", 2)[2])
+    share_code = callback.data.split(":", 2)[2]
     action_service = ActionService(session)
-    shared = await action_service.get_custom_trigger_by_id(trigger_id)
+    shared = await action_service.get_custom_trigger_by_share_code(share_code)
     if shared is None:
         await callback.answer(L(lang, "Действие больше не существует", "This action no longer exists"), show_alert=True)
         return
@@ -542,7 +542,8 @@ async def cb_myrp_share(callback: CallbackQuery, db_user: User, session: AsyncSe
         return
 
     me = await callback.bot.get_me()
-    link = f"https://t.me/{me.username}?start=rp_{trigger_obj.id}"
+    share_code = await action_service.ensure_share_code(trigger_obj)
+    link = f"https://t.me/{me.username}?start=rp_{share_code}"
 
     b = EntityTextBuilder()
     g, gid = emoji("share_link")

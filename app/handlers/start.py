@@ -168,10 +168,10 @@ async def cmd_start(message: Message, db_user: User, session: AsyncSession, comm
         )
         return
 
-    if command.args and command.args.startswith("rp_") and command.args[3:].isdigit():
+    if command.args and command.args.startswith("rp_") and command.args[3:]:
         from app.handlers.custom_rp import shared_rp_preview  # локальный импорт во избежание циклов
 
-        preview = await shared_rp_preview(int(command.args[3:]), db_user, session)
+        preview = await shared_rp_preview(command.args[3:], db_user, session)
         if preview is not None:
             text, entities, keyboard = preview
             await message.answer(text, entities=entities, parse_mode=None, reply_markup=keyboard)

@@ -146,6 +146,34 @@ class ActionService:
     async def get_custom_trigger_by_id(self, trigger_id: int) -> CustomTrigger | None:
         return await self.session.get(CustomTrigger, trigger_id)
 
+    async def get_custom_trigger_by_share_code(self, share_code: str) -> CustomTrigger | None:
+        result = await self.session.execute(
+            select(CustomTrigger).where(CustomTrigger.share_code == share_code)
+        )
+        return result.scalar_one_or_none()
+
+    async def ensure_share_code(self, trigger: CustomTrigger) -> str:
+        """Возвращает существующий share_code действия или генерирует новый случайный (7 симв.)."""
+        if trigger.share_code:
+            return trigger.share_code
+
+        alphabet = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # без похожих на вид символов
+        for _ in range(10):
+            candidate = "".join(random.choice(alphabet) for _ in range(7))
+            existing = await self.get_custom_trigger_by_share_code(candidate)
+            if existing is None:
+                trigger.share_code = candidate
+                await self.session.commit()
+                await self.session.refresh(trigger)
+                return candidate
+
+        # Крайне маловероятный случай подряд идущих коллизий — берём id как соль.
+        candidate = f"{trigger.id}{random.choice(alphabet)}"[:7]
+        trigger.share_code = candidate
+        await self.session.commit()
+        await self.session.refresh(trigger)
+        return candidate
+
     async def list_custom_triggers(self, owner_id: int) -> list[CustomTrigger]:
         result = await self.session.execute(
             select(CustomTrigger).where(CustomTrigger.owner_id == owner_id)

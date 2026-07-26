@@ -80,6 +80,15 @@ async def _run_light_migrations() -> None:
         await conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_edit_name BOOLEAN DEFAULT FALSE")
         )
+        await conn.execute(
+            text("ALTER TABLE custom_triggers ADD COLUMN IF NOT EXISTS share_code VARCHAR(16)")
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_custom_triggers_share_code "
+                "ON custom_triggers (share_code) WHERE share_code IS NOT NULL"
+            )
+        )
 
 
 async def init_models() -> None:

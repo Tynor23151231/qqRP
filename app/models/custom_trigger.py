@@ -45,6 +45,11 @@ class CustomTrigger(Base):
     # с этим text как подписью). Необязательно.
     gif_file_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
+    # Случайный код для ссылки "поделиться" (вместо предсказуемого автоинкрементного id,
+    # чтобы нельзя было перебором узнать чужие действия по номеру). Генерируется лениво
+    # при первом шаринге. См. app.utils.share_code.
+    share_code: Mapped[str | None] = mapped_column(String(16), nullable=True, unique=True, index=True)
+
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     owner: Mapped["User"] = relationship(back_populates="custom_triggers")  # noqa: F821
